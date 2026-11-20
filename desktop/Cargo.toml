@@ -3,11 +3,28 @@ name = "pocketremote"
 version = "0.1.0"
 edition = "2024"
 publish = false
+default-run = "pocketremote"
+
+[features]
+# The menu-bar / tray host app and its Control Panel. Off by default so the core crate and its CI
+# stay free of GUI and system-library dependencies (Linux tray needs GTK).
+gui = ["dep:iced", "dep:tray-icon", "dep:muda"]
+
+[[bin]]
+name = "pocketremote-host"
+path = "src/bin/host/main.rs"
+required-features = ["gui"]
 
 [dependencies]
 base64 = "0.23.1"
 futures-util = "0.3.34"
 getrandom = "0.4.3"
+# GUI (feature "gui"): iced renders the Control Panel (software renderer, so idle RAM stays low; its qr_code
+# widget draws the pairing QR); tray-icon + muda give the menu-bar icon and its menu. All three are
+# the stack PLAN.md section 5.1 names; the spike (docs/spike-report.md) ran them on macOS.
+iced = { version = "0.14.0", optional = true, default-features = false, features = ["tokio", "tiny-skia", "qr_code"] }
+muda = { version = "0.21.2", optional = true }
+tray-icon = { version = "0.26.1", optional = true }
 httparse = "1.10.1"
 if-addrs = "0.15.0"
 keyring-core = "1.0.1"
