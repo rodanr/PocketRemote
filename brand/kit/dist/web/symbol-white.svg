@@ -1,0 +1,9 @@
+<svg fill="#ffffff" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="PocketRemote"><title>PocketRemote</title>
+  
+  <!-- P with a D-shaped counter that is literally a pocket; one light rests low inside it.
+       Stem 31, bowl walls 29-31, outer corners r14, junction fillet r6. Centred optically. -->
+  <g transform="translate(-6.5 0)">
+    <path fill="#ffffff" fill-rule="evenodd" d="M86 40H138A59 59 0 0 1 138 158H109A6 6 0 0 0 103 164V202A14 14 0 0 1 89 216H86A14 14 0 0 1 72 202V54A14 14 0 0 1 86 40Z M103 69H138A30 30 0 0 1 138 129H103Z"/>
+    <circle cx="130" cy="106" r="14.5" fill="#ffffff"/>
+  </g>
+</svg>
