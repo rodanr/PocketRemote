@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { Message } from '../protocol';
 import { color, space, type as t } from '../theme';
 import { tick } from './haptics';
@@ -18,6 +18,16 @@ export function KeyboardBar({ send, onTyping }: Props) {
   const [text, setText] = useState('');
   const [live, setLive] = useState(false);
   const prev = useRef('');
+  const input = useRef<React.ComponentRef<typeof TextInput>>(null);
+
+  // However the keyboard goes away (Back button, swipe, Send), release focus so the controls return.
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidHide', () => {
+      input.current?.blur();
+      onTyping(false);
+    });
+    return () => sub.remove();
+  }, [onTyping]);
 
   const change = (next: string) => {
     if (live) {
@@ -41,11 +51,13 @@ export function KeyboardBar({ send, onTyping }: Props) {
     tick();
     send({ type: 'text', value: text, submit: true });
     setText('');
+    Keyboard.dismiss(); // done typing: bring the controls back
   };
 
   return (
     <View style={s.bar}>
       <TextInput
+        ref={input}
         accessibilityLabel={live ? 'Live typing field' : 'Text to send'}
         style={[s.field, live && s.fieldLive]}
         cursorColor={color.amber}
