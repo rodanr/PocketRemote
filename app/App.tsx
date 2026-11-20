@@ -1,3 +1,4 @@
+import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, useFonts } from '@expo-google-fonts/manrope';
 import { StatusBar } from 'expo-status-bar';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect, useState } from 'react';
@@ -115,6 +116,7 @@ function Remote({ boot, onForget }: { boot: Boot; onForget: () => void }) {
 
 export default function App() {
   const [boot, setBoot] = useState<Boot | null>(null);
+  const [fontsReady] = useFonts({ Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold });
 
   useEffect(() => {
     void (async () => {
@@ -131,7 +133,7 @@ export default function App() {
     <SafeAreaProvider>
       <StatusBar style="light" />
       <View style={s.root}>
-        {!boot ? null : boot.pairing ? (
+        {!boot || !fontsReady ? null : boot.pairing ? (
           <Remote key={boot.pairing.hostId} boot={boot} onForget={forget} />
         ) : (
           <SafeAreaView style={s.screen}>

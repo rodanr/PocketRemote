@@ -1,11 +1,12 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, BackHandler, Easing, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, BackHandler, Easing, Linking, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Text } from './Text';
 import type { Keypair } from '../noise';
 import { secureRng } from '../rng';
 import { PairingClient, parsePairingUri, type PairingEvent, type PairingOffer } from '../session';
 import { savePairing, type Pairing } from '../storage';
-import { color, radius, space, TARGET, type as t } from '../theme';
+import { color, font, radius, space, TARGET, type as t } from '../theme';
 import { press, tick } from './haptics';
 
 type Step = 'intro' | 'scan' | 'working' | 'code' | 'error';
@@ -290,7 +291,7 @@ const s = StyleSheet.create({
   primaryWide: { minHeight: 56, borderRadius: radius.pill, backgroundColor: color.amber, alignItems: 'center', justifyContent: 'center' },
   primary: { minHeight: 52, minWidth: 200, borderRadius: radius.pill, backgroundColor: color.amber, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.l },
   primaryText: { color: color.onAmber, fontSize: 16, fontWeight: '500' },
-  dev: { height: TARGET, borderRadius: radius.pill, borderWidth: 1, borderColor: color.outline, paddingHorizontal: space.m, color: color.text },
+  dev: { height: TARGET, fontFamily: font.regular, borderRadius: radius.pill, borderWidth: 1, borderColor: color.outline, paddingHorizontal: space.m, color: color.text },
   ghost: { minHeight: TARGET, minWidth: 120, alignItems: 'center', justifyContent: 'center', marginTop: space.s },
   scrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(7,7,10,0.35)' },
   frame: { position: 'absolute', left: '50%', top: '38%', width: FRAME, height: FRAME, marginLeft: -FRAME / 2, marginTop: -FRAME / 2 },

@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from './Text';
 import type { ConnState } from '../connection';
 import { color, space, TARGET, type as t } from '../theme';
 import { describe } from './StatusHeader';

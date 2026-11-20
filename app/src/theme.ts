@@ -20,6 +20,13 @@ export const color = {
   danger: '#ff7a6a',
 } as const;
 
+/** Manrope (free, OFL), loaded in App.tsx. One family per weight, because Android ignores fontWeight for custom fonts. */
+export const font = {
+  regular: 'Manrope_400Regular',
+  medium: 'Manrope_500Medium',
+  semibold: 'Manrope_600SemiBold',
+} as const;
+
 /** One 8 dp rhythm. */
 export const space = { xs: 4, s: 8, m: 16, l: 24 } as const;
 export const radius = { s: 12, m: 16, pill: 28 } as const;
@@ -29,7 +36,7 @@ export const TARGET = 48;
 /** Material 3 type roles, in sp (React Native scales these with the system font size). */
 export const type = {
   title: { fontSize: 18, fontWeight: '500' as const, color: color.text },
-  body: { fontSize: 15, color: color.text },
+  body: { fontSize: 15, color: color.text, fontFamily: font.regular },
   label: { fontSize: 12, fontWeight: '500' as const, letterSpacing: 0.4, color: color.textMuted },
   code: { fontSize: 44, fontWeight: '500' as const, letterSpacing: 2, color: color.amber, fontVariant: ['tabular-nums' as const] },
 };

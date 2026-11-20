@@ -95,6 +95,9 @@ fn single_instance() -> Option<std::fs::File> {
     Some(file)
 }
 
+/// Manrope (free, SIL Open Font License; see assets/fonts/OFL.txt), the same family as the phone app.
+const MANROPE: iced::Font = iced::Font::with_name("Manrope");
+
 fn main() -> iced::Result {
     let Some(_lock) = single_instance() else {
         eprintln!("PocketRemote is already running. Use its menu-bar icon.");
@@ -102,6 +105,10 @@ fn main() -> iced::Result {
     };
     iced::daemon(boot, update, view)
         .title(|_: &App, _| "PocketRemote".to_string())
+        .font(include_bytes!("../../../assets/fonts/Manrope_400Regular.ttf").as_slice())
+        .font(include_bytes!("../../../assets/fonts/Manrope_500Medium.ttf").as_slice())
+        .font(include_bytes!("../../../assets/fonts/Manrope_600SemiBold.ttf").as_slice())
+        .default_font(MANROPE)
         .theme(|app: &App, _| theme(app.dark))
         .subscription(subscription)
         .run()
@@ -464,66 +471,70 @@ enum Kind {
 fn semibold() -> iced::Font {
     iced::Font {
         weight: iced::font::Weight::Semibold,
-        ..iced::Font::DEFAULT
+        ..MANROPE
+    }
+}
+
+fn medium() -> iced::Font {
+    iced::Font {
+        weight: iced::font::Weight::Medium,
+        ..MANROPE
     }
 }
 
 /// A real button: filled, with a visible edge. Hugs its label (Mac style), 30 px high.
 fn btn<'a>(p: Pal, label: &'a str, kind: Kind, msg: Msg) -> Element<'a, Msg> {
-    button(text(label).size(13).font(iced::Font {
-        weight: iced::font::Weight::Medium,
-        ..iced::Font::DEFAULT
-    }))
-    .padding([7, 16])
-    .on_press(msg)
-    .style(move |_, status| {
-        let hover = matches!(status, button::Status::Hovered);
-        let down = matches!(status, button::Status::Pressed);
-        let (bg, fg, border) = match kind {
-            Kind::Lead => (
-                if down {
-                    rgb(0xe8, 0x9f, 0x3e)
-                } else if hover {
-                    rgb(0xff, 0xc0, 0x70)
-                } else {
-                    AMBER
+    button(text(label).size(13).font(medium()))
+        .padding([7, 16])
+        .on_press(msg)
+        .style(move |_, status| {
+            let hover = matches!(status, button::Status::Hovered);
+            let down = matches!(status, button::Status::Pressed);
+            let (bg, fg, border) = match kind {
+                Kind::Lead => (
+                    if down {
+                        rgb(0xe8, 0x9f, 0x3e)
+                    } else if hover {
+                        rgb(0xff, 0xc0, 0x70)
+                    } else {
+                        AMBER
+                    },
+                    ON_AMBER,
+                    p.lead_border,
+                ),
+                Kind::Normal => (
+                    if down {
+                        p.btn_pressed
+                    } else if hover {
+                        p.btn_hover
+                    } else {
+                        p.btn
+                    },
+                    p.text,
+                    p.btn_border,
+                ),
+                Kind::Quiet => (
+                    Color::TRANSPARENT,
+                    if hover || down {
+                        Color { a: 0.8, ..p.danger }
+                    } else {
+                        p.danger
+                    },
+                    Color::TRANSPARENT,
+                ),
+            };
+            button::Style {
+                background: Some(Background::Color(bg)),
+                text_color: fg,
+                border: Border {
+                    radius: 8.0.into(),
+                    width: 1.0,
+                    color: border,
                 },
-                ON_AMBER,
-                p.lead_border,
-            ),
-            Kind::Normal => (
-                if down {
-                    p.btn_pressed
-                } else if hover {
-                    p.btn_hover
-                } else {
-                    p.btn
-                },
-                p.text,
-                p.btn_border,
-            ),
-            Kind::Quiet => (
-                Color::TRANSPARENT,
-                if hover || down {
-                    Color { a: 0.8, ..p.danger }
-                } else {
-                    p.danger
-                },
-                Color::TRANSPARENT,
-            ),
-        };
-        button::Style {
-            background: Some(Background::Color(bg)),
-            text_color: fg,
-            border: Border {
-                radius: 8.0.into(),
-                width: 1.0,
-                color: border,
-            },
-            ..button::Style::default()
-        }
-    })
-    .into()
+                ..button::Style::default()
+            }
+        })
+        .into()
 }
 
 fn card<'a>(p: Pal, content: impl Into<Element<'a, Msg>>) -> Element<'a, Msg> {

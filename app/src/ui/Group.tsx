@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from './Text';
 import { color, space } from '../theme';
 
 /** A tiny muted title above a group of keys, so groups cannot be mistaken for one another. */

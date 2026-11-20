@@ -1,5 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Text } from './Text';
 import type { PointerSettings } from '../trackpad/pointer';
 import { color, space, TARGET, type as t } from '../theme';
 import { tick } from './haptics';
