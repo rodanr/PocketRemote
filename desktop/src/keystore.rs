@@ -190,9 +190,8 @@ pub fn open_default_store() -> Result<Box<dyn SecretStore>> {
     if let Ok(os) = OsKeyring::init() {
         return Ok(Box::new(os));
     }
-    let dir = dirs::config_dir()
+    let dir = crate::paths::config_dir()
         .ok_or(KeystoreError::Unavailable)?
-        .join("pocketremote")
         .join("keys");
     Ok(Box::new(FileStore::new(dir)?))
 }
