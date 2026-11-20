@@ -13,6 +13,10 @@ PocketRemote is not distributed publicly yet. These steps install a build you ma
 6. **Keychain:** macOS asks whether PocketRemote may use its own keychain items (`pocketremote`). Enter your Mac password and choose **Always Allow**. It only ever reads the three items it created.
 7. **Network:** on a network it has not seen, PocketRemote stays paused until you press **Allow this network**.
 
+**If the app icon looks generic at first** (in Finder, the menu bar or notifications): macOS registers a newly installed app's icon in the background and can take a short while. To refresh it right away, run `/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/PocketRemote.app && killall Dock Finder`.
+
+**Notification icon:** the "Phone connected" notification shows the PocketRemote icon while PocketRemote is in the background. If PocketRemote is the app you are currently using, macOS would hide a native banner, so the app sends a plain one instead (always shown, generic icon).
+
 Turn on **Open at login** in the Control Panel if you want it to start with your Mac.
 
 ## Android phone
