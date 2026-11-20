@@ -1,0 +1,5 @@
+# Keep line endings identical on every OS: generated files and vectors are compared byte for byte.
+* text=auto eol=lf
+*.png binary
+*.webp binary
+*.ico binary

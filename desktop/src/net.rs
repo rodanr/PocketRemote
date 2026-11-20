@@ -157,13 +157,20 @@ impl Limiter {
 pub struct RateWindow {
     start: Instant,
     count: u32,
+    limit: u32,
 }
 
 impl RateWindow {
     pub fn new(now: Instant) -> Self {
+        Self::with_limit(now, MAX_MESSAGES_PER_SECOND)
+    }
+
+    /// For tests that must trigger the cap on slow machines. Production uses `new`.
+    pub fn with_limit(now: Instant, limit: u32) -> Self {
         Self {
             start: now,
             count: 0,
+            limit,
         }
     }
 
@@ -174,7 +181,7 @@ impl RateWindow {
             self.count = 0;
         }
         self.count += 1;
-        self.count <= MAX_MESSAGES_PER_SECOND
+        self.count <= self.limit
     }
 }
 

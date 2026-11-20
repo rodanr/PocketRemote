@@ -81,6 +81,8 @@ pub struct ServerConfig {
     pub handshake_timeout: Duration,
     pub silence_timeout: Duration,
     idle_timeout: Duration,
+    /// Messages per second before a session is closed (PLAN.md §3.9: 250). Tests lower it.
+    rate_limit: u32,
 }
 
 impl ServerConfig {
@@ -93,6 +95,7 @@ impl ServerConfig {
             handshake_timeout: Duration::from_secs(3),
             silence_timeout: Duration::from_secs(15),
             idle_timeout: Duration::from_secs(30 * 60),
+            rate_limit: net::MAX_MESSAGES_PER_SECOND,
         }
     }
 
@@ -461,7 +464,18 @@ async fn finish_pairing(sh: Arc<Shared>, mut ws: Ws2, outcome: PairingOutcome) {
         }
     }
     let _ = sh.events.send(ServerEvent::PairingFinished { approved });
+    close_gracefully(&mut ws).await;
+}
+
+/// Close politely, then drain briefly. Dropping a socket that still has unread incoming data
+/// makes some stacks (notably Windows) reset the connection and discard what we just sent,
+/// such as an `error` message. The drain is bounded, so a peer that keeps sending cannot hold us.
+async fn close_gracefully(ws: &mut Ws2) {
     let _ = ws.close(None).await;
+    let _ = timeout(Duration::from_millis(500), async {
+        while ws.next().await.is_some_and(|m| m.is_ok()) {}
+    })
+    .await;
 }
 
 async fn send_msg(ws: &mut Ws2, tr: &mut Transport, msg: &Message) -> bool {
@@ -483,7 +497,7 @@ async fn run_session(sh: Arc<Shared>, mut ws: Ws2, mut tr: Transport) {
     if let Some(code) = end_code {
         let _ = send_msg(&mut ws, &mut tr, &Message::Error { code }).await;
     }
-    let _ = ws.close(None).await;
+    close_gracefully(&mut ws).await;
     // Always release held buttons and keys when a session ends.
     sh.sink.release_all();
     let mut active = lock(&sh.active);
@@ -512,7 +526,7 @@ async fn session_loop(
     if !send_msg(ws, tr, &status).await {
         return None;
     }
-    let mut rate = RateWindow::new(StdInstant::now());
+    let mut rate = RateWindow::with_limit(StdInstant::now(), sh.cfg.rate_limit);
     let mut last_rx = Instant::now();
     let mut last_input = Instant::now();
     loop {
@@ -922,10 +936,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn more_than_250_messages_per_second_closes_the_session() {
-        let h = harness().await;
+    async fn exceeding_the_message_rate_cap_closes_the_session() {
+        // The production cap is 250/s (covered exactly in net.rs). Here it is lowered so that a
+        // slow CI machine, which cannot send 250 messages in one second, still exceeds it.
+        let h = harness_with(true, false, |c| c.rate_limit = 5).await;
         let mut p = session(&h).await;
-        for t in 0..300 {
+        for t in 0..60 {
             if p.ws
                 .send(Ws::Binary(
                     p.tr.encrypt(&Message::Ping { t }.encode()).unwrap().into(),
