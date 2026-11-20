@@ -44,12 +44,14 @@ interface Props {
   state: ConnState;
   hostName: string;
   profile: string;
+  /** Show the profile chip only when there is more than one to choose from. */
+  showProfile: boolean;
   onReconnect: () => void;
   onSettings: () => void;
   onRescan: () => void;
 }
 
-export function StatusHeader({ state, hostName, profile, onReconnect, onSettings, onRescan }: Props) {
+export function StatusHeader({ state, hostName, profile, showProfile, onReconnect, onSettings, onRescan }: Props) {
   const d = describe(state);
   const connected = state.phase === 'connected';
   return (
@@ -66,21 +68,24 @@ export function StatusHeader({ state, hostName, profile, onReconnect, onSettings
             <Text style={t.title} numberOfLines={1}>
               {hostName}
             </Text>
-            <Text style={[t.label, d.kind === 'down' && { color: color.danger }]} numberOfLines={1}>
+            <Text style={[s.statusText, d.kind === 'down' && { color: color.danger }]} numberOfLines={1}>
               {d.word}
             </Text>
           </View>
         </Pressable>
-        <View style={s.chip} accessibilityLabel={`Player profile ${profile}`}>
-          <Text style={s.chipText}>{profile}</Text>
-        </View>
+        {showProfile ? (
+          <View style={s.chip} accessibilityLabel={`Player profile ${profile}`}>
+            <Text style={s.chipText}>{profile}</Text>
+          </View>
+        ) : null}
         <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={onSettings} style={s.icon}>
           <MaterialCommunityIcons name="cog-outline" size={24} color={color.text} />
         </Pressable>
       </View>
       {!connected && state.phase !== 'connecting' ? (
         <View style={s.banner} accessibilityLiveRegion="polite">
-          <Text style={[t.body, { flex: 1 }]}>{d.hint ?? d.word}</Text>
+          {d.kind === 'paused' ? <MaterialCommunityIcons name="pause-circle-outline" size={22} color={color.textMuted} /> : null}
+          <Text style={[t.body, { flex: 1 }]}>{d.kind === 'paused' ? 'Paused on your Mac. Resume it there.' : (d.hint ?? d.word)}</Text>
           {state.reason === 'paused' ? null : (
             <Pressable accessibilityRole="button" onPress={state.needsRescan ? onRescan : onReconnect} style={s.bannerBtn}>
               <Text style={s.bannerBtnText}>{state.needsRescan ? 'Scan again' : 'Reconnect'}</Text>
@@ -93,7 +98,7 @@ export function StatusHeader({ state, hostName, profile, onReconnect, onSettings
 }
 
 const c = StyleSheet.create({
-  dot: { width: 14, height: 14, borderRadius: 7 },
+  dot: { width: 10, height: 10, borderRadius: 5 },
   ring: { width: 16, height: 16, borderRadius: 8, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   bar: { width: 2, height: 6, backgroundColor: color.danger },
   strike: { width: 12, height: 2, backgroundColor: color.danger, transform: [{ rotate: '-45deg' }] },
@@ -102,10 +107,12 @@ const c = StyleSheet.create({
 const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: 56 },
   status: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.s + 4, minHeight: TARGET },
-  chip: { minHeight: 36, paddingHorizontal: space.m - 4, borderRadius: 18, justifyContent: 'center', backgroundColor: color.surface, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: color.outline },
+  chip: { minHeight: 36, paddingHorizontal: space.m - 4, borderRadius: 18, justifyContent: 'center', backgroundColor: color.surface },
   chipText: { ...t.body, fontSize: 13, textTransform: 'capitalize' },
   icon: { width: TARGET, height: TARGET, alignItems: 'center', justifyContent: 'center' },
-  banner: { flexDirection: 'row', alignItems: 'center', gap: space.s, padding: space.s + 4, borderRadius: 14, backgroundColor: color.surface, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: color.outline, marginBottom: space.s },
-  bannerBtn: { minHeight: 40, paddingHorizontal: space.m, justifyContent: 'center', borderRadius: 20, backgroundColor: color.amber },
-  bannerBtnText: { color: color.onAmber, fontWeight: '500', fontSize: 14 },
+  banner: { flexDirection: 'row', alignItems: 'center', gap: space.s, padding: space.s + 4, borderRadius: 16, backgroundColor: color.surface, marginBottom: space.s },
+  // Tonal, not amber: amber stays reserved for the one lead action.
+  bannerBtn: { minHeight: 40, paddingHorizontal: space.m, justifyContent: 'center', borderRadius: 20, backgroundColor: color.surfacePressed },
+  bannerBtnText: { color: color.text, fontWeight: '500', fontSize: 14 },
+  statusText: { fontSize: 13, color: color.textMuted },
 });

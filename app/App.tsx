@@ -34,6 +34,7 @@ function Remote({ boot, onForget }: { boot: Boot; onForget: () => void }) {
   const { width, height } = useWindowDimensions();
   const landscape = width > height;
   const connected = state.phase === 'connected';
+  const usable = connected && !state.status?.paused;
 
   const change = useCallback((s: PointerSettings) => {
     setSettings(s);
@@ -45,6 +46,7 @@ function Remote({ boot, onForget }: { boot: Boot; onForget: () => void }) {
       state={state}
       hostName={pairing.hostName}
       profile={state.status?.profile ?? 'generic'}
+      showProfile={(state.status?.profiles.length ?? 0) > 1}
       onReconnect={reconnect}
       onSettings={() => setSheet(true)}
       onRescan={onForget}
@@ -56,20 +58,20 @@ function Remote({ boot, onForget }: { boot: Boot; onForget: () => void }) {
       <View style={s.body}>
         {header}
         {landscape ? (
-          <Trackpad send={send} settings={settings} />
+          <Trackpad send={send} settings={settings} dim={!usable} />
         ) : (
           <>
             <KeyboardBar send={send} onTyping={setTyping} />
             {!typing ? (
-              <View style={[s.controls, !connected && s.dim]} pointerEvents={connected ? 'auto' : 'none'}>
-                <MediaDeck send={send} />
+              <View style={[s.controls, !usable && s.dim]} pointerEvents={usable ? 'auto' : 'none'}>
+                <MediaDeck send={send} active={usable} />
                 <View style={s.row}>
                   <Dpad send={send} />
                   <BrowserBlock send={send} />
                 </View>
               </View>
             ) : null}
-            <Trackpad send={send} settings={settings} />
+            <Trackpad send={send} settings={settings} dim={!usable} />
           </>
         )}
       </View>
@@ -123,6 +125,6 @@ const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.ground },
   body: { flex: 1, paddingHorizontal: space.m, paddingTop: space.s, paddingBottom: space.m, gap: space.s },
   controls: { gap: space.s },
-  dim: { opacity: 0.45 },
+  dim: { opacity: 0.5 },
   row: { flexDirection: 'row', gap: space.m, alignItems: 'stretch' },
 });

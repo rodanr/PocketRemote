@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { Message } from '../protocol';
-import { color, radius, space, TARGET, type as t } from '../theme';
+import { color, space, type as t } from '../theme';
 import { tick } from './haptics';
 
 interface Props {
@@ -48,6 +48,8 @@ export function KeyboardBar({ send, onTyping }: Props) {
       <TextInput
         accessibilityLabel={live ? 'Live typing field' : 'Text to send'}
         style={[s.field, live && s.fieldLive]}
+        cursorColor={color.amber}
+        selectionColor="rgba(255,180,84,0.35)"
         value={text}
         onChangeText={change}
         onFocus={() => onTyping(true)}
@@ -90,14 +92,15 @@ export function KeyboardBar({ send, onTyping }: Props) {
   );
 }
 
+const H = 52; // one height for the field, Live and Send
 const s = StyleSheet.create({
   bar: { flexDirection: 'row', gap: space.s, alignItems: 'center' },
-  field: { flex: 1, height: TARGET + 4, borderRadius: radius.pill, backgroundColor: color.surface, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: color.outline, paddingHorizontal: space.m, ...t.body },
+  field: { flex: 1, height: H, borderRadius: H / 2, backgroundColor: color.surface, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: 'transparent', paddingHorizontal: space.m, ...t.body },
   fieldLive: { borderColor: color.amber },
-  live: { minWidth: TARGET, height: TARGET, borderRadius: TARGET / 2, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth * 2, borderColor: color.outline },
+  live: { minWidth: 60, height: H, borderRadius: H / 2, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth * 2, borderColor: color.outline },
   liveOn: { borderColor: color.amber },
   liveText: { ...t.label, fontSize: 13 },
-  send: { minWidth: 64, height: TARGET, borderRadius: TARGET / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: color.surface, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: color.outline, paddingHorizontal: space.m },
+  send: { minWidth: 68, height: H, borderRadius: H / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: color.surface, paddingHorizontal: space.m },
   sendReady: { backgroundColor: color.amber, borderColor: color.amber },
   sendText: { ...t.body, fontSize: 14, color: color.textMuted },
 });

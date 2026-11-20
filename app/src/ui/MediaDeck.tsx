@@ -4,17 +4,17 @@ import { space } from '../theme';
 import { Key } from './Key';
 
 /**
- * [Play (double width)][-10][+10] / [Mute][Vol -][Vol +] / [CC][Full]
+ * [Play (double width)][-10][+10] / [Mute][Vol -][Vol +] / [CC][Full][Esc]
  * Play/Pause is the one amber control. Seek sits away from Fullscreen and Mute away from Vol -,
  * so a thumb that is not watching cannot trigger the wrong one.
  */
-export function MediaDeck({ send }: { send: (m: Message) => void }) {
+export function MediaDeck({ send, active }: { send: (m: Message) => void; active: boolean }) {
   const media = (action: 'play_pause' | 'mute' | 'vol_up' | 'vol_down') => () => send({ type: 'media', action });
   const player = (action: 'seek_back' | 'seek_fwd' | 'fullscreen' | 'captions') => () => send({ type: 'player', action });
   return (
     <View style={s.deck}>
       <View style={s.row}>
-        <Key label="Play or pause" icon="play-pause" lead flex={2} onPress={media('play_pause')} />
+        <Key label="Play or pause" icon="play-pause" lead={active} flex={2} onPress={media('play_pause')} />
         <Key label="Back 10 seconds" icon="rewind-10" onPress={player('seek_back')} />
         <Key label="Forward 10 seconds" icon="fast-forward-10" onPress={player('seek_fwd')} />
       </View>
@@ -26,6 +26,7 @@ export function MediaDeck({ send }: { send: (m: Message) => void }) {
       <View style={s.row}>
         <Key label="Captions" icon="closed-caption" onPress={player('captions')} />
         <Key label="Fullscreen" icon="fullscreen" onPress={player('fullscreen')} />
+        <Key label="Escape" icon="keyboard-esc" onPress={() => send({ type: 'key', key: 'escape' })} />
       </View>
     </View>
   );

@@ -48,7 +48,7 @@ export function Dpad({ send }: { send: (m: Message) => void }) {
 }
 
 const s = StyleSheet.create({
-  pad: { width: SIZE, height: SIZE, borderRadius: SIZE / 2, backgroundColor: color.surface, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: color.outline },
+  pad: { width: SIZE, height: SIZE, borderRadius: SIZE / 2, backgroundColor: color.surface },
   arrow: { position: 'absolute', width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   ok: { position: 'absolute', left: (SIZE - OK) / 2 - 1, top: (SIZE - OK) / 2 - 1, width: OK, height: OK, borderRadius: OK / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: color.ground, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: color.outline, margin: space.xs - 4 },
   okText: { color: color.text, fontSize: 16, fontWeight: '500' },

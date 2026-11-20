@@ -22,13 +22,15 @@ export interface KeyProps {
   flex?: number;
   height?: number;
   round?: boolean;
+  /** Unfilled, outlined in the danger colour (Close tab). */
+  danger?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
 const REPEAT_DELAY = 350;
 const REPEAT_EVERY = 110;
 
-export function Key({ label, icon, text, onPress, lead, repeat, holdMs, flex = 1, height = 52, round, style }: KeyProps) {
+export function Key({ label, icon, text, onPress, lead, repeat, holdMs, flex = 1, height = 52, round, danger, style }: KeyProps) {
   const timer = useRef<ReturnType<typeof setTimeout> | ReturnType<typeof setInterval> | null>(null);
   const stop = () => {
     if (timer.current !== null) {
@@ -66,22 +68,24 @@ export function Key({ label, icon, text, onPress, lead, repeat, holdMs, flex = 1
       style={({ pressed }) => [
         s.base,
         { flex, minHeight: Math.max(height, TARGET), borderRadius: round ? 999 : radius.m },
-        lead ? s.lead : s.normal,
+        danger ? s.danger : lead ? s.lead : s.normal,
         pressed && (lead ? s.leadPressed : s.pressed),
         style,
       ]}
     >
-      {icon ? <MaterialCommunityIcons name={icon} size={24} color={lead ? color.onAmber : color.text} /> : null}
+      {icon ? <MaterialCommunityIcons name={icon} size={24} color={lead ? color.onAmber : danger ? color.danger : color.text} /> : null}
       {text ? <Text style={[s.text, lead && { color: color.onAmber }]}>{text}</Text> : null}
     </Pressable>
   );
 }
 
 const s = StyleSheet.create({
-  base: { alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, borderWidth: StyleSheet.hairlineWidth * 2 },
-  normal: { backgroundColor: color.surface, borderColor: color.outline },
+  base: { alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
+  // Filled keys carry no outline: fill plus outline says 'shape' twice and looks fussy.
+  normal: { backgroundColor: color.surface },
+  danger: { borderWidth: StyleSheet.hairlineWidth * 2, borderColor: 'rgba(255,107,90,0.6)', backgroundColor: 'transparent' },
   pressed: { backgroundColor: color.surfacePressed },
-  lead: { backgroundColor: color.amber, borderColor: color.amber },
+  lead: { backgroundColor: color.amber },
   leadPressed: { backgroundColor: '#e89f3e' },
   text: { ...t.body, fontSize: 14 },
 });

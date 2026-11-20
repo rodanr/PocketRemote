@@ -1,6 +1,6 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, BackHandler, Easing, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { Keypair } from '../noise';
 import { secureRng } from '../rng';
 import { PairingClient, parsePairingUri, type PairingEvent, type PairingOffer } from '../session';
@@ -11,6 +11,28 @@ import { press, tick } from './haptics';
 type Step = 'intro' | 'scan' | 'working' | 'code' | 'error';
 
 const PAIRING_TIMEOUT_MS = 130_000; // the host's window is 120 s
+
+const RING = 288;
+const RING_DOTS = 14;
+
+/** A ring of amber lights framing the pairing code (the Mac's QR gets the same frame). */
+function Ring({ children }: { children: React.ReactNode }) {
+  return (
+    <View style={{ width: RING, height: RING, alignItems: 'center', justifyContent: 'center' }}>
+      {Array.from({ length: RING_DOTS }, (_, i) => {
+        const a = (i / RING_DOTS) * Math.PI * 2 - Math.PI / 2;
+        const r = RING / 2 - 6;
+        return (
+          <View
+            key={i}
+            style={{ position: 'absolute', width: 6, height: 6, borderRadius: 3, backgroundColor: color.amber, opacity: 0.75, left: RING / 2 + r * Math.cos(a) - 3, top: RING / 2 + r * Math.sin(a) - 3 }}
+          />
+        );
+      })}
+      {children}
+    </View>
+  );
+}
 
 /** The aisle-light runway as an empty-state graphic: a dim column of lights leading to one lit point. */
 function Runway() {
@@ -27,6 +49,8 @@ function Runway() {
 export function PairingScreen({ phone, onPaired }: { phone: Keypair; onPaired: (p: Pairing) => void }) {
   const [step, setStep] = useState<Step>('intro');
   const [code, setCode] = useState('');
+  const [addr, setAddr] = useState('');
+  const [countdown] = useState(() => new Animated.Value(1));
   const [error, setError] = useState('');
   const [permission, requestPermission] = useCameraPermissions();
   const socket = useRef<WebSocket | null>(null);
@@ -71,6 +95,7 @@ export function PairingScreen({ phone, onPaired }: { phone: Keypair; onPaired: (
 
   const begin = useCallback(
     (offer: PairingOffer) => {
+      setAddr(offer.addr);
       setStep('working');
       const ws = new WebSocket(`ws://${offer.addr}/ws`);
       ws.binaryType = 'arraybuffer';
@@ -85,6 +110,8 @@ export function PairingScreen({ phone, onPaired }: { phone: Keypair; onPaired: (
             press();
             setCode(e.code);
             setStep('code');
+            countdown.setValue(1);
+            Animated.timing(countdown, { toValue: 0, duration: 120_000, easing: Easing.linear, useNativeDriver: true }).start();
           } else if (e.kind === 'paired') {
             const pairing: Pairing = { addr: offer.addr, hostKey: e.hostKey, hostId: offer.hostId, hostName: e.hostName };
             void savePairing(pairing).then(() => {
@@ -102,7 +129,7 @@ export function PairingScreen({ phone, onPaired }: { phone: Keypair; onPaired: (
       ws.onerror = () => undefined;
       timer.current = setTimeout(() => fail('That took too long. Start pairing again on your Mac.'), PAIRING_TIMEOUT_MS);
     },
-    [phone, onPaired, cleanup, fail],
+    [phone, onPaired, cleanup, fail, countdown],
   );
 
   const onScan = useCallback(
@@ -158,16 +185,15 @@ export function PairingScreen({ phone, onPaired }: { phone: Keypair; onPaired: (
     );
   }
 
-  return (
-    <View style={[s.fill, s.center]}>
-      {step === 'intro' && (
-        <>
+  if (step === 'intro') {
+    return (
+      <View style={s.fill}>
+        <View style={s.introTop}>
           <Runway />
           <Text style={[t.title, s.h]}>Scan the code on your Mac</Text>
-          <Text style={[t.body, s.p]}>On your Mac, open PocketRemote and choose Pair phone. Both devices must be on the same Wi-Fi.</Text>
-          <Pressable accessibilityRole="button" onPress={startScan} style={s.primary}>
-            <Text style={s.primaryText}>Scan code</Text>
-          </Pressable>
+          <Text style={[t.body, s.p]}>Open PocketRemote on your Mac and choose Pair phone. Both on the same Wi-Fi.</Text>
+        </View>
+        <View style={s.introBottom}>
           {__DEV__ ? (
             // Development only (not in release builds): paste the pairing link, for emulators without a camera.
             <TextInput
@@ -176,6 +202,7 @@ export function PairingScreen({ phone, onPaired }: { phone: Keypair; onPaired: (
               placeholderTextColor={color.textMuted}
               autoCapitalize="none"
               autoCorrect={false}
+              cursorColor={color.amber}
               style={s.dev}
               onSubmitEditing={(e) => {
                 handled.current = false;
@@ -183,39 +210,66 @@ export function PairingScreen({ phone, onPaired }: { phone: Keypair; onPaired: (
               }}
             />
           ) : null}
-        </>
-      )}
-      {step === 'working' && (
-        <>
-          <Runway />
-          <Text style={[t.title, s.h]}>Connecting to your Mac…</Text>
-        </>
-      )}
-      {step === 'code' && (
-        <>
-          <Text style={[t.label, { marginBottom: space.m }]}>CODE</Text>
-          <Text style={t.code} accessibilityLabel={`Code ${code.split('').join(' ')}`}>
-            {code.slice(0, 3)} {code.slice(3)}
-          </Text>
-          <Text style={[t.body, s.p, { marginTop: space.l }]}>Approve on your Mac. Check that the code matches the one shown there.</Text>
-        </>
-      )}
-      {step === 'error' && (
-        <>
-          <Text style={[t.title, s.h]}>Couldn&apos;t pair</Text>
-          <Text style={[t.body, s.p]} accessibilityLiveRegion="polite">
-            {error}
-          </Text>
-          <Pressable accessibilityRole="button" onPress={startScan} style={s.primary}>
-            <Text style={s.primaryText}>Try again</Text>
+          <Pressable accessibilityRole="button" onPress={startScan} style={s.primaryWide}>
+            <Text style={s.primaryText}>Scan code</Text>
           </Pressable>
-          {permission && !permission.granted && !permission.canAskAgain ? (
-            <Pressable accessibilityRole="button" onPress={() => void Linking.openSettings()} style={s.ghost}>
-              <Text style={t.body}>Open Settings</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={s.fill}>
+      <View style={[s.fill, s.center]}>
+        {step === 'working' && (
+          <>
+            <Runway />
+            <Text style={[t.title, s.h]}>Connecting to your Mac…</Text>
+          </>
+        )}
+        {step === 'code' && (
+          <>
+            <Text style={[t.body, { color: color.textMuted, marginBottom: space.m }]}>Pairing with {addr}</Text>
+            <Ring>
+              <Text style={s.code} accessibilityLabel={`Code ${code.split('').join(' ')}`}>
+                {code.slice(0, 3)} {code.slice(3)}
+              </Text>
+            </Ring>
+            <Text style={[t.body, s.p, { marginTop: space.l }]}>Approve on your Mac. Check that the code matches the one shown there.</Text>
+            <View style={s.track} accessible={false}>
+              <Animated.View style={[s.trackFill, { transform: [{ scaleX: countdown }] }]} />
+            </View>
+          </>
+        )}
+        {step === 'error' && (
+          <>
+            <Text style={[t.title, s.h]}>Couldn&apos;t pair</Text>
+            <Text style={[t.body, s.p]} accessibilityLiveRegion="polite">
+              {error}
+            </Text>
+            <Pressable accessibilityRole="button" onPress={startScan} style={s.primary}>
+              <Text style={s.primaryText}>Try again</Text>
             </Pressable>
-          ) : null}
-        </>
-      )}
+            {permission && !permission.granted && !permission.canAskAgain ? (
+              <Pressable accessibilityRole="button" onPress={() => void Linking.openSettings()} style={s.ghost}>
+                <Text style={t.body}>Open Settings</Text>
+              </Pressable>
+            ) : null}
+          </>
+        )}
+      </View>
+      {step === 'working' || step === 'code' ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => {
+            cleanup();
+            setStep('intro');
+          }}
+          style={s.cancel}
+        >
+          <Text style={[t.body, { color: color.textMuted }]}>Cancel</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -226,10 +280,17 @@ const s = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center', padding: space.l },
   runway: { alignItems: 'center', gap: space.s, marginBottom: space.l },
   h: { textAlign: 'center', fontSize: 22, marginBottom: space.s },
-  p: { textAlign: 'center', color: color.textMuted, maxWidth: 320, marginBottom: space.l },
+  p: { textAlign: 'center', color: color.textMuted, maxWidth: 300, marginBottom: space.l, lineHeight: 22 },
+  code: { fontSize: 57, fontWeight: '400', letterSpacing: 6, color: color.amber, fontVariant: ['tabular-nums'] },
+  track: { width: 200, height: 2, borderRadius: 1, backgroundColor: color.surface, overflow: 'hidden', marginTop: space.s },
+  trackFill: { height: 2, backgroundColor: color.amber, transformOrigin: 'left' },
+  cancel: { minHeight: TARGET, alignSelf: 'center', justifyContent: 'center', paddingHorizontal: space.l, marginBottom: space.l },
+  introTop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.l },
+  introBottom: { paddingHorizontal: space.m, paddingBottom: space.l + 8, gap: space.s },
+  primaryWide: { minHeight: 56, borderRadius: radius.pill, backgroundColor: color.amber, alignItems: 'center', justifyContent: 'center' },
   primary: { minHeight: 52, minWidth: 200, borderRadius: radius.pill, backgroundColor: color.amber, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.l },
   primaryText: { color: color.onAmber, fontSize: 16, fontWeight: '500' },
-  dev: { marginTop: space.l, minWidth: 260, height: TARGET, borderRadius: radius.pill, borderWidth: 1, borderColor: color.outline, paddingHorizontal: space.m, color: color.text },
+  dev: { height: TARGET, borderRadius: radius.pill, borderWidth: 1, borderColor: color.outline, paddingHorizontal: space.m, color: color.text },
   ghost: { minHeight: TARGET, minWidth: 120, alignItems: 'center', justifyContent: 'center', marginTop: space.s },
   scrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(7,7,10,0.35)' },
   frame: { position: 'absolute', left: '50%', top: '38%', width: FRAME, height: FRAME, marginLeft: -FRAME / 2, marginTop: -FRAME / 2 },

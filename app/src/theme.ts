@@ -5,7 +5,8 @@ export const color = {
   surface: '#1c1914',
   surfacePressed: '#2a251c',
   trackpad: '#0e0d0b',
-  outline: '#6b5a3e', // about 3:1 on the ground, so shapes read in the dark
+  outline: '#6b5a3e', // about 3:1: used only on unfilled controls (Live, Close tab), never on filled keys
+  hairline: '#2a251c', // quiet edge for large surfaces such as the trackpad
   text: '#e8e2d6',
   textMuted: '#a08a6a', // about 6:1 on the ground
   amber: '#ffb454',

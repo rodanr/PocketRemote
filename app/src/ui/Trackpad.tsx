@@ -1,22 +1,26 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useEffect, useMemo, useState } from 'react';
-import { AccessibilityInfo, Animated, type GestureResponderEvent, type LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, Animated, type GestureResponderEvent, type LayoutChangeEvent, StyleSheet, View } from 'react-native';
 import type { Message } from '../protocol';
 import type { PointerSettings } from '../trackpad/pointer';
-import { color, radius, space } from '../theme';
-import { press } from './haptics';
+import { color } from '../theme';
 import { TrackpadController } from './trackpadController';
 
 const MARGIN = 24; // dp kept clear of both side edges so Android's Back gesture cannot fire mid-drag
-const SPACING = 26;
-const BASE = 0.35; // idle light level; the lights never animate on their own
+const PITCH = 24;
 
 interface Props {
   send: (m: Message) => void;
   settings: PointerSettings;
+  /** Lights drop to 10% when the remote is not usable (paused or disconnected). */
+  dim?: boolean;
 }
 
-export function Trackpad({ send, settings }: Props) {
+/**
+ * The runway: two columns of aisle lights, small and faint at the top and larger and brighter
+ * toward the thumb (perspective). Lights at the finger's height go to full; a drag lock turns
+ * the whole runway solid. Nothing animates on its own.
+ */
+export function Trackpad({ send, settings, dim }: Props) {
   const [ctl] = useState(() => new TrackpadController(send, settings));
   const [height, setHeight] = useState(0);
 
@@ -33,8 +37,16 @@ export function Trackpad({ send, settings }: Props) {
     ctl.feed(touches, touches.length ? e.nativeEvent.touches[0].locationY : null);
   };
 
-  const rows = height > 0 ? Math.max(2, Math.floor((height - 24) / SPACING)) : 0;
-  const dots = useMemo(() => Array.from({ length: rows }, (_, i) => 12 + i * ((height - 24) / Math.max(1, rows - 1))), [rows, height]);
+  const rows = height > 0 ? Math.max(3, Math.floor((height - 32) / PITCH)) : 0;
+  const dots = useMemo(
+    () =>
+      Array.from({ length: rows }, (_, i) => {
+        const t = rows > 1 ? i / (rows - 1) : 1; // 0 at the top, 1 at the bottom
+        const size = 3 + 2.5 * t;
+        return { y: 16 + t * (height - 32) - size / 2, size, base: (dim ? 0.1 : 0.18) + (dim ? 0.1 : 0.4) * t };
+      }),
+    [rows, height, dim],
+  );
 
   return (
     <View
@@ -60,17 +72,20 @@ export function Trackpad({ send, settings }: Props) {
       }}
     >
       {(['left', 'right'] as const).map((side) =>
-        dots.map((y, i) => (
+        dots.map((d, i) => (
           <Animated.View
             key={`${side}${i}`}
             pointerEvents="none"
             style={[
               s.dot,
-              side === 'left' ? { left: MARGIN - 3 } : { right: MARGIN - 3 },
+              side === 'left' ? { left: MARGIN } : { right: MARGIN },
               {
-                top: y,
+                top: d.y,
+                width: d.size,
+                height: d.size,
+                borderRadius: d.size / 2,
                 opacity: Animated.add(
-                  ctl.fingerY.interpolate({ inputRange: [y - 90, y, y + 90], outputRange: [BASE, 1, BASE], extrapolate: 'clamp' }),
+                  ctl.fingerY.interpolate({ inputRange: [d.y - 100, d.y, d.y + 100], outputRange: [d.base, 1, d.base], extrapolate: 'clamp' }),
                   ctl.solid,
                 ),
               },
@@ -78,26 +93,11 @@ export function Trackpad({ send, settings }: Props) {
           />
         )),
       )}
-      {/* Close tab: its own corner, outlined, needs a deliberate hold (it cannot be undone). */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Close tab"
-        accessibilityHint="Press and hold"
-        delayLongPress={300}
-        onLongPress={() => {
-          press();
-          send({ type: 'browser', action: 'close_tab' });
-        }}
-        style={({ pressed }) => [s.close, pressed && { backgroundColor: color.surfacePressed }]}
-      >
-        <MaterialCommunityIcons name="tab-remove" size={22} color={color.textMuted} />
-      </Pressable>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  pad: { flex: 1, minHeight: 160, borderRadius: radius.pill, backgroundColor: color.trackpad, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: color.outline, overflow: 'hidden' },
-  dot: { position: 'absolute', width: 6, height: 6, borderRadius: 3, backgroundColor: color.amber },
-  close: { position: 'absolute', top: space.s, right: MARGIN + 12, width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth * 2, borderColor: color.outline },
+  pad: { flex: 1, minHeight: 160, borderRadius: 24, backgroundColor: color.trackpad, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: color.hairline, overflow: 'hidden' },
+  dot: { position: 'absolute', backgroundColor: color.amber },
 });
