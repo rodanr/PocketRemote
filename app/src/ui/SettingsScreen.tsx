@@ -1,14 +1,14 @@
-import { Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import type { PointerSettings } from '../trackpad/pointer';
 import { color, space, TARGET, type as t } from '../theme';
 import { tick } from './haptics';
 
 interface Props {
-  visible: boolean;
   settings: PointerSettings;
   hostName: string;
   onChange: (s: PointerSettings) => void;
-  onClose: () => void;
+  onBack: () => void;
   onForget: () => void;
 }
 
@@ -40,13 +40,17 @@ function Stepper({ label, value, display, onDec, onInc }: { label: string; value
 
 const round = (v: number) => Math.round(v * 100) / 100;
 
-export function SettingsSheet({ visible, settings, hostName, onChange, onClose, onForget }: Props) {
+/** Full-screen settings page with a back arrow (the Android Back button also returns). */
+export function SettingsScreen({ settings, hostName, onChange, onBack, onForget }: Props) {
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable style={s.scrim} onPress={onClose} accessibilityLabel="Close settings" />
-      <View style={s.sheet}>
-        <View style={s.grab} />
-        <Text style={[t.title, { marginBottom: space.m }]}>Settings</Text>
+    <View style={s.screen}>
+      <View style={s.top}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={onBack} style={s.back}>
+          <MaterialCommunityIcons name="arrow-left" size={24} color={color.text} />
+        </Pressable>
+        <Text style={t.title} accessibilityRole="header">Settings</Text>
+      </View>
+      <ScrollView contentContainerStyle={s.content}>
         <Stepper label="Pointer speed" value={settings.speed} display={`${settings.speed.toFixed(2)}×`} onDec={() => onChange({ ...settings, speed: Math.max(0.5, round(settings.speed - 0.25)) })} onInc={() => onChange({ ...settings, speed: Math.min(4, round(settings.speed + 0.25)) })} />
         <Stepper label="Acceleration" value={settings.acceleration} display={`${Math.round(settings.acceleration * 100)}%`} onDec={() => onChange({ ...settings, acceleration: Math.max(0, round(settings.acceleration - 0.25)) })} onInc={() => onChange({ ...settings, acceleration: Math.min(1, round(settings.acceleration + 0.25)) })} />
         <View style={s.row}>
@@ -65,15 +69,16 @@ export function SettingsSheet({ visible, settings, hostName, onChange, onClose, 
         <Pressable accessibilityRole="button" onPress={onForget} style={s.forget}>
           <Text style={{ color: color.danger, fontSize: 15 }}>Forget {hostName} and pair again</Text>
         </Pressable>
-      </View>
-    </Modal>
+      </ScrollView>
+    </View>
   );
 }
 
 const s = StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  sheet: { backgroundColor: color.groove, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: space.l, paddingBottom: space.l + 8, borderTopWidth: 1, borderColor: color.rim },
-  grab: { alignSelf: 'center', width: 32, height: 4, borderRadius: 2, backgroundColor: color.rimStrong, marginBottom: space.m },
+  screen: { flex: 1, backgroundColor: color.ground },
+  top: { flexDirection: 'row', alignItems: 'center', gap: space.s, paddingHorizontal: space.s, paddingTop: space.s, minHeight: 56 },
+  back: { width: TARGET, height: TARGET, alignItems: 'center', justifyContent: 'center' },
+  content: { padding: space.l, paddingTop: space.m },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 56 },
   stepper: { flexDirection: 'row', alignItems: 'center' },
   step: { width: TARGET, height: TARGET, borderRadius: TARGET / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: color.surface, borderWidth: 1, borderColor: color.rim },

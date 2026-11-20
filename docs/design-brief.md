@@ -56,3 +56,8 @@ Three swipeable pages (dots above the trackpad show which one):
 - Settings lists the trackpad gestures.
 - Compact layout keeps the trackpad large: 48 dp keys, 52 dp header, page dots sit in the gap above the trackpad and cost no height.
 - Rule from the owner for adding anything: only simple, reliable actions. Deliberately NOT added: three-finger swipe shortcuts (OnePlus system gestures, accidental triggers), Mission Control (needs a new protocol command and depends on a macOS shortcut that may be off; revisit after a 30 s on-device check), a mouse Hold toggle (can desync), slide First/Last (inconsistent across apps), a Stop key (not available in enigo).
+
+## Addendum 2026-11-20 (later): settings page, connection dialog, dots
+- **Settings** is a dedicated full-screen page (back arrow; Android Back returns to the remote), not a bottom sheet.
+- **No connection:** a dialog card floats over the controls, below the header, so nothing is pushed down and Settings stays reachable. Paused shows "Paused on your computer", others show the reason with Reconnect (or Scan again when pairing is needed).
+- **Page dots** are 4 dp and sit inside the existing gap above the trackpad, so they cost no height.

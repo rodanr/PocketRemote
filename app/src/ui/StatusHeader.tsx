@@ -48,10 +48,9 @@ interface Props {
   showProfile: boolean;
   onReconnect: () => void;
   onSettings: () => void;
-  onRescan: () => void;
 }
 
-export function StatusHeader({ state, hostName, profile, showProfile, onReconnect, onSettings, onRescan }: Props) {
+export function StatusHeader({ state, hostName, profile, showProfile, onReconnect, onSettings }: Props) {
   const d = describe(state);
   const connected = state.phase === 'connected';
   return (
@@ -82,17 +81,6 @@ export function StatusHeader({ state, hostName, profile, showProfile, onReconnec
           <MaterialCommunityIcons name="cog-outline" size={24} color={color.text} />
         </Pressable>
       </View>
-      {!connected && state.phase !== 'connecting' ? (
-        <View style={s.banner} accessibilityLiveRegion="polite">
-          {d.kind === 'paused' ? <MaterialCommunityIcons name="pause-circle-outline" size={22} color={color.textMuted} /> : null}
-          <Text style={[t.body, { flex: 1 }]}>{d.kind === 'paused' ? 'Paused on your computer. Resume it there.' : (d.hint ?? d.word)}</Text>
-          {state.reason === 'paused' ? null : (
-            <Pressable accessibilityRole="button" onPress={state.needsRescan ? onRescan : onReconnect} style={s.bannerBtn}>
-              <Text style={s.bannerBtnText}>{state.needsRescan ? 'Scan again' : 'Reconnect'}</Text>
-            </Pressable>
-          )}
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -110,9 +98,5 @@ const s = StyleSheet.create({
   chip: { minHeight: 36, paddingHorizontal: space.m - 4, borderRadius: 18, justifyContent: 'center', backgroundColor: color.surface },
   chipText: { ...t.body, fontSize: 13, textTransform: 'capitalize' },
   icon: { width: TARGET, height: TARGET, alignItems: 'center', justifyContent: 'center' },
-  banner: { flexDirection: 'row', alignItems: 'center', gap: space.s, padding: space.s + 4, borderRadius: 16, backgroundColor: color.surface, marginBottom: space.s },
-  // Tonal, not amber: amber stays reserved for the one lead action.
-  bannerBtn: { minHeight: 40, paddingHorizontal: space.m, justifyContent: 'center', borderRadius: 20, backgroundColor: color.surfacePressed },
-  bannerBtnText: { color: color.text, fontWeight: '500', fontSize: 14 },
   statusText: { fontSize: 13, color: color.textMuted },
 });

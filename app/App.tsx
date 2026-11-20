@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect, useState } from 'react';
-import { Keyboard, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { BackHandler, Keyboard, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { type Keypair } from './src/noise';
 import { secureRng } from './src/rng';
@@ -14,7 +14,8 @@ import { MainPage } from './src/ui/MainPage';
 import { MorePage } from './src/ui/MorePage';
 import { Pager } from './src/ui/Pager';
 import { PairingScreen } from './src/ui/PairingScreen';
-import { SettingsSheet } from './src/ui/SettingsSheet';
+import { SettingsScreen } from './src/ui/SettingsScreen';
+import { ConnectionDialog } from './src/ui/ConnectionDialog';
 import { StatusHeader } from './src/ui/StatusHeader';
 import { Trackpad } from './src/ui/Trackpad';
 
@@ -47,6 +48,16 @@ function Remote({ boot, onForget }: { boot: Boot; onForget: () => void }) {
     };
   }, []);
 
+  // Android Back returns from the Settings page instead of leaving the app.
+  useEffect(() => {
+    if (!sheet) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setSheet(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [sheet]);
+
   const change = useCallback((s: PointerSettings) => {
     setSettings(s);
     void saveSettings(s);
@@ -60,39 +71,44 @@ function Remote({ boot, onForget }: { boot: Boot; onForget: () => void }) {
       showProfile={(state.status?.profiles.length ?? 0) > 1}
       onReconnect={reconnect}
       onSettings={() => setSheet(true)}
-      onRescan={onForget}
     />
   );
 
   return (
     <SafeAreaView style={s.screen} edges={['top', 'bottom', 'left', 'right']}>
-      <View style={[s.body, kb > 0 && { paddingBottom: space.m + kb }]}>
-        {header}
-        {landscape ? (
-          <Trackpad send={send} settings={settings} dim={!usable} />
-        ) : (
-          <>
-            <KeyboardBar send={send} onTyping={setTyping} />
-            {!typing ? (
-              <View style={[s.controls, !usable && s.dim]} pointerEvents={usable ? 'auto' : 'none'}>
-                <Pager pages={[<MainPage key="main" send={send} active={usable} />, <MorePage key="more" send={send} />]} />
-              </View>
-            ) : null}
-            <Trackpad send={send} settings={settings} dim={!usable} />
-          </>
-        )}
-      </View>
-      <SettingsSheet
-        visible={sheet}
-        settings={settings}
-        hostName={pairing.hostName}
-        onChange={change}
-        onClose={() => setSheet(false)}
-        onForget={() => {
-          setSheet(false);
-          onForget();
-        }}
-      />
+      {sheet ? (
+        <SettingsScreen
+          settings={settings}
+          hostName={pairing.hostName}
+          onChange={change}
+          onBack={() => setSheet(false)}
+          onForget={() => {
+            setSheet(false);
+            onForget();
+          }}
+        />
+      ) : (
+        <View style={[s.body, kb > 0 && { paddingBottom: space.m + kb }]}>
+          {header}
+          {/* Everything under the header; the connection dialog floats over this, so nothing is pushed down. */}
+          <View style={s.stage}>
+            {landscape ? (
+              <Trackpad send={send} settings={settings} dim={!usable} />
+            ) : (
+              <>
+                <KeyboardBar send={send} onTyping={setTyping} />
+                {!typing ? (
+                  <View style={[s.controls, !usable && s.dim]} pointerEvents={usable ? 'auto' : 'none'}>
+                    <Pager pages={[<MainPage key="main" send={send} active={usable} />, <MorePage key="more" send={send} />]} />
+                  </View>
+                ) : null}
+                <Trackpad send={send} settings={settings} dim={!usable} />
+              </>
+            )}
+            <ConnectionDialog state={state} onReconnect={reconnect} onRescan={onForget} />
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -131,6 +147,7 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: color.ground },
   screen: { flex: 1, backgroundColor: color.ground },
   body: { flex: 1, paddingHorizontal: space.m, paddingTop: space.s, paddingBottom: space.m, gap: space.s },
+  stage: { flex: 1, gap: space.s },
   controls: { gap: space.s },
   dim: { opacity: 0.5 },
 });

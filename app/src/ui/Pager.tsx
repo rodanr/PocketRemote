@@ -1,14 +1,12 @@
-import { useRef, useState } from 'react';
-import { type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent, ScrollView, StyleSheet, View } from 'react-native';
 import { color } from '../theme';
-import { tick } from './haptics';
 
 /**
- * Swipeable pages with small dots in the gap beneath them, so they use no extra height. Every page
+ * Swipeable pages with tiny dots in the gap beneath them, so they use no extra height. Every page
  * is as tall as the first and the trackpad never changes size; shorter pages sit centred.
  */
 export function Pager({ pages }: { pages: React.ReactNode[] }) {
-  const scroller = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [width, setWidth] = useState(0);
   const [height, setHeight] = useState(0);
   const [index, setIndex] = useState(0);
@@ -16,15 +14,9 @@ export function Pager({ pages }: { pages: React.ReactNode[] }) {
   const settle = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (width > 0) setIndex(Math.round(e.nativeEvent.contentOffset.x / width));
   };
-  const go = (i: number) => {
-    tick();
-    setIndex(i);
-    scroller.current?.scrollTo({ x: i * width, animated: true });
-  };
-
   return (
     <View onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}>
-      <ScrollView ref={scroller} horizontal pagingEnabled showsHorizontalScrollIndicator={false} onMomentumScrollEnd={settle} nestedScrollEnabled decelerationRate="fast">
+      <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} onMomentumScrollEnd={settle} nestedScrollEnabled decelerationRate="fast">
         {pages.map((page, i) => (
           <View key={i} style={{ width, minHeight: height || undefined, justifyContent: 'center' }}>
             {/* Measure the content itself, not the box that carries the minimum height. */}
@@ -32,11 +24,9 @@ export function Pager({ pages }: { pages: React.ReactNode[] }) {
           </View>
         ))}
       </ScrollView>
-      <View style={s.dots} accessibilityRole="tablist">
+      <View style={s.dots} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         {pages.map((_, i) => (
-          <Pressable key={i} accessibilityRole="tab" accessibilityLabel={`Page ${i + 1} of ${pages.length}`} accessibilityState={{ selected: i === index }} onPress={() => go(i)} hitSlop={14}>
-            <View style={[s.dot, i === index && s.dotOn]} />
-          </Pressable>
+          <View key={i} style={[s.dot, i === index && s.dotOn]} />
         ))}
       </View>
     </View>
@@ -44,8 +34,8 @@ export function Pager({ pages }: { pages: React.ReactNode[] }) {
 }
 
 const s = StyleSheet.create({
-  // Its own row under the keys, so nothing can overlap it.
-  dots: { height: 14, marginTop: 4, flexDirection: 'row', justifyContent: 'center', gap: 6, alignItems: 'center' },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: color.rimStrong },
-  dotOn: { width: 18, backgroundColor: color.textMuted },
+  // Centred in the existing 8 dp gap above the trackpad, so they cost no height.
+  dots: { position: 'absolute', left: 0, right: 0, bottom: -6, height: 4, flexDirection: 'row', justifyContent: 'center', gap: 5 },
+  dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: color.rimStrong },
+  dotOn: { width: 14, backgroundColor: color.textMuted },
 });
