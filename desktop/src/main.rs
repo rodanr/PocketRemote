@@ -2,6 +2,7 @@
 //! QR in the terminal and takes simple commands. The tray and Control Panel come next.
 //!
 //! Flags: `--file-keys` keep keys in a 0600 file instead of the OS keychain (development).
+//!        `--print-uri` also print the pairing link as text (development only; it holds the token).
 //! Never prints keys, tokens, typed text or decrypted payloads.
 #![forbid(unsafe_code)]
 
@@ -77,6 +78,7 @@ async fn ask_yes_no(lines: &mut tokio::io::Lines<BufReader<tokio::io::Stdin>>, q
 #[tokio::main]
 async fn main() {
     let file_keys = std::env::args().any(|a| a == "--file-keys");
+    let print_uri = std::env::args().any(|a| a == "--print-uri");
     let mut lines = BufReader::new(tokio::io::stdin()).lines();
 
     let Some(ip) = net::default_route_ip().filter(|ip| net::ip_allowed(*ip)) else {
@@ -195,6 +197,10 @@ async fn main() {
                         Ok(offer) => {
                             println!("Scan with PocketRemote within {} seconds:", offer.expires_in.as_secs());
                             print_qr(&offer.uri);
+                            if print_uri {
+                                // Development only: the link contains the one-time pairing token.
+                                println!("DEV-URI {}", offer.uri);
+                            }
                         }
                         Err(e) => println!("cannot open pairing: {e:?}"),
                     },

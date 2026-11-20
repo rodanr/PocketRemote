@@ -1,6 +1,6 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { Keypair } from '../noise';
 import { secureRng } from '../rng';
 import { PairingClient, parsePairingUri, type PairingEvent, type PairingOffer } from '../session';
@@ -168,6 +168,21 @@ export function PairingScreen({ phone, onPaired }: { phone: Keypair; onPaired: (
           <Pressable accessibilityRole="button" onPress={startScan} style={s.primary}>
             <Text style={s.primaryText}>Scan code</Text>
           </Pressable>
+          {__DEV__ ? (
+            // Development only (not in release builds): paste the pairing link, for emulators without a camera.
+            <TextInput
+              accessibilityLabel="Paste pairing link (development only)"
+              placeholder="dev: paste pocketremote:// link"
+              placeholderTextColor={color.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={s.dev}
+              onSubmitEditing={(e) => {
+                handled.current = false;
+                onScan(e.nativeEvent.text.trim());
+              }}
+            />
+          ) : null}
         </>
       )}
       {step === 'working' && (
@@ -214,6 +229,7 @@ const s = StyleSheet.create({
   p: { textAlign: 'center', color: color.textMuted, maxWidth: 320, marginBottom: space.l },
   primary: { minHeight: 52, minWidth: 200, borderRadius: radius.pill, backgroundColor: color.amber, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.l },
   primaryText: { color: color.onAmber, fontSize: 16, fontWeight: '500' },
+  dev: { marginTop: space.l, minWidth: 260, height: TARGET, borderRadius: radius.pill, borderWidth: 1, borderColor: color.outline, paddingHorizontal: space.m, color: color.text },
   ghost: { minHeight: TARGET, minWidth: 120, alignItems: 'center', justifyContent: 'center', marginTop: space.s },
   scrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(7,7,10,0.35)' },
   frame: { position: 'absolute', left: '50%', top: '38%', width: FRAME, height: FRAME, marginLeft: -FRAME / 2, marginTop: -FRAME / 2 },

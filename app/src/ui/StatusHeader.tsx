@@ -81,9 +81,11 @@ export function StatusHeader({ state, hostName, profile, onReconnect, onSettings
       {!connected && state.phase !== 'connecting' ? (
         <View style={s.banner} accessibilityLiveRegion="polite">
           <Text style={[t.body, { flex: 1 }]}>{d.hint ?? d.word}</Text>
-          <Pressable accessibilityRole="button" onPress={state.needsRescan ? onRescan : onReconnect} style={s.bannerBtn}>
-            <Text style={s.bannerBtnText}>{state.needsRescan ? 'Scan again' : 'Reconnect'}</Text>
-          </Pressable>
+          {state.reason === 'paused' ? null : (
+            <Pressable accessibilityRole="button" onPress={state.needsRescan ? onRescan : onReconnect} style={s.bannerBtn}>
+              <Text style={s.bannerBtnText}>{state.needsRescan ? 'Scan again' : 'Reconnect'}</Text>
+            </Pressable>
+          )}
         </View>
       ) : null}
     </View>
