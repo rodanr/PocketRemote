@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Keyboard, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { type Keypair } from './src/noise';
 import { secureRng } from './src/rng';
@@ -31,10 +31,21 @@ function Remote({ boot, onForget }: { boot: Boot; onForget: () => void }) {
   const [settings, setSettings] = useState(boot.settings);
   const [typing, setTyping] = useState(false);
   const [sheet, setSheet] = useState(false);
+  const [kb, setKb] = useState(0);
   const { width, height } = useWindowDimensions();
   const landscape = width > height;
   const connected = state.phase === 'connected';
   const usable = connected && !state.status?.paused;
+
+  // The window does not resize for the keyboard here, so lift the content above it ourselves.
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', (e) => setKb(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKb(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   const change = useCallback((s: PointerSettings) => {
     setSettings(s);
@@ -55,7 +66,7 @@ function Remote({ boot, onForget }: { boot: Boot; onForget: () => void }) {
 
   return (
     <SafeAreaView style={s.screen} edges={['top', 'bottom', 'left', 'right']}>
-      <View style={s.body}>
+      <View style={[s.body, kb > 0 && { paddingBottom: space.m + kb }]}>
         {header}
         {landscape ? (
           <Trackpad send={send} settings={settings} dim={!usable} />
@@ -64,10 +75,7 @@ function Remote({ boot, onForget }: { boot: Boot; onForget: () => void }) {
             <KeyboardBar send={send} onTyping={setTyping} />
             {!typing ? (
               <View style={[s.controls, !usable && s.dim]} pointerEvents={usable ? 'auto' : 'none'}>
-                <Pager
-                  labels={['Remote', 'Browser & slides']}
-                  pages={[<MainPage key="main" send={send} active={usable} />, <MorePage key="more" send={send} />]}
-                />
+                <Pager pages={[<MainPage key="main" send={send} active={usable} />, <MorePage key="more" send={send} />]} />
               </View>
             ) : null}
             <Trackpad send={send} settings={settings} dim={!usable} />

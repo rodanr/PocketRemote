@@ -15,7 +15,7 @@ const PAIRING_TIMEOUT_MS = 130_000; // the host's window is 120 s
 const RING = 288;
 const RING_DOTS = 14;
 
-/** A ring of amber lights framing the pairing code (the Mac's QR gets the same frame). */
+/** A ring of amber lights framing the pairing code (the computer's QR gets the same frame). */
 function Ring({ children }: { children: React.ReactNode }) {
   return (
     <View style={{ width: RING, height: RING, alignItems: 'center', justifyContent: 'center' }}>
@@ -119,7 +119,7 @@ export function PairingScreen({ phone, onPaired }: { phone: Keypair; onPaired: (
               onPaired(pairing);
             });
           } else {
-            fail("Pairing didn't complete. The Mac may have rejected it or the code expired.");
+            fail("Pairing didn't complete. The computer may have rejected it or the code expired.");
           }
         },
       });
@@ -127,7 +127,7 @@ export function PairingScreen({ phone, onPaired }: { phone: Keypair; onPaired: (
       ws.onmessage = (ev) => client.receive(new Uint8Array(ev.data as ArrayBuffer));
       ws.onclose = () => client.remoteClosed();
       ws.onerror = () => undefined;
-      timer.current = setTimeout(() => fail('That took too long. Start pairing again on your Mac.'), PAIRING_TIMEOUT_MS);
+      timer.current = setTimeout(() => fail('That took too long. Start pairing again on your computer.'), PAIRING_TIMEOUT_MS);
     },
     [phone, onPaired, cleanup, fail, countdown],
   );
@@ -138,7 +138,7 @@ export function PairingScreen({ phone, onPaired }: { phone: Keypair; onPaired: (
       const offer = parsePairingUri(data);
       handled.current = true;
       if (!offer) {
-        fail("That isn't a PocketRemote code. Scan the code shown on your Mac.");
+        fail("That isn't a PocketRemote code. Scan the code shown on your computer.");
         return;
       }
       tick();
@@ -152,7 +152,7 @@ export function PairingScreen({ phone, onPaired }: { phone: Keypair; onPaired: (
     if (!permission?.granted) {
       const r = await requestPermission();
       if (!r.granted) {
-        setError(r.canAskAgain ? 'PocketRemote needs the camera to read the code on your Mac.' : 'Camera access is turned off. Enable it in Settings to scan the code.');
+        setError(r.canAskAgain ? 'PocketRemote needs the camera to read the code on your computer.' : 'Camera access is turned off. Enable it in Settings to scan the code.');
         setStep('error');
         return;
       }
@@ -176,7 +176,7 @@ export function PairingScreen({ phone, onPaired }: { phone: Keypair; onPaired: (
           ))}
         </View>
         <View style={s.scanBottom}>
-          <Text style={[t.body, { textAlign: 'center' }]}>Point at the code on your Mac</Text>
+          <Text style={[t.body, { textAlign: 'center' }]}>Point at the code on your computer</Text>
           <Pressable accessibilityRole="button" onPress={() => setStep('intro')} style={s.ghost}>
             <Text style={t.body}>Cancel</Text>
           </Pressable>
@@ -190,8 +190,8 @@ export function PairingScreen({ phone, onPaired }: { phone: Keypair; onPaired: (
       <View style={s.fill}>
         <View style={s.introTop}>
           <Runway />
-          <Text style={[t.title, s.h]}>Scan the code on your Mac</Text>
-          <Text style={[t.body, s.p]}>Open PocketRemote on your Mac and choose Pair phone. Both on the same Wi-Fi.</Text>
+          <Text style={[t.title, s.h]}>Scan the code on your computer</Text>
+          <Text style={[t.body, s.p]}>Open PocketRemote on your computer and choose Pair phone. Both on the same Wi-Fi.</Text>
         </View>
         <View style={s.introBottom}>
           {__DEV__ ? (
@@ -224,7 +224,7 @@ export function PairingScreen({ phone, onPaired }: { phone: Keypair; onPaired: (
         {step === 'working' && (
           <>
             <Runway />
-            <Text style={[t.title, s.h]}>Connecting to your Mac…</Text>
+            <Text style={[t.title, s.h]}>Connecting to your computer…</Text>
           </>
         )}
         {step === 'code' && (
@@ -235,7 +235,7 @@ export function PairingScreen({ phone, onPaired }: { phone: Keypair; onPaired: (
                 {code.slice(0, 3)} {code.slice(3)}
               </Text>
             </Ring>
-            <Text style={[t.body, s.p, { marginTop: space.l }]}>Approve on your Mac. Check that the code matches the one shown there.</Text>
+            <Text style={[t.body, s.p, { marginTop: space.l }]}>Approve on your computer. Check that the code matches the one shown there.</Text>
             <View style={s.track} accessible={false}>
               <Animated.View style={[s.trackFill, { transform: [{ scaleX: countdown }] }]} />
             </View>

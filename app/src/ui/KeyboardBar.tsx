@@ -1,5 +1,6 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useEffect, useRef, useState } from 'react';
-import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import type { Message } from '../protocol';
 import { color, space, type as t } from '../theme';
 import { tick } from './haptics';
@@ -17,6 +18,7 @@ interface Props {
 export function KeyboardBar({ send, onTyping }: Props) {
   const [text, setText] = useState('');
   const [live, setLive] = useState(false);
+  const [focused, setFocused] = useState(false);
   const prev = useRef('');
   const input = useRef<React.ComponentRef<typeof TextInput>>(null);
 
@@ -42,6 +44,13 @@ export function KeyboardBar({ send, onTyping }: Props) {
     setText(next);
   };
 
+  const toggleLive = () => {
+    tick();
+    prev.current = '';
+    setText('');
+    setLive((v) => !v);
+  };
+
   const submit = () => {
     if (live) {
       send({ type: 'key', key: 'enter' });
@@ -54,68 +63,72 @@ export function KeyboardBar({ send, onTyping }: Props) {
     Keyboard.dismiss(); // done typing: bring the controls back
   };
 
+  const hasText = !live && text.length > 0;
   return (
     <View style={s.bar}>
+      <View style={s.fieldWrap}>
       <TextInput
         ref={input}
         accessibilityLabel={live ? 'Live typing field' : 'Text to send'}
-        style={[s.field, live && s.fieldLive]}
+        style={[s.field, focused && s.fieldOpen, live && s.fieldLive]}
+        multiline
+        submitBehavior="submit"
         cursorColor={color.amber}
         selectionColor="rgba(255,180,84,0.35)"
         value={text}
         onChangeText={change}
-        onFocus={() => onTyping(true)}
-        onBlur={() => onTyping(false)}
+        onFocus={() => {
+          setFocused(true);
+          onTyping(true);
+        }}
+        onBlur={() => {
+          setFocused(false);
+          onTyping(false);
+        }}
         onSubmitEditing={live ? submit : undefined}
-        blurOnSubmit={false}
-        placeholder={live ? 'Live: typing on your Mac' : 'Type to send'}
+        placeholder={live ? 'Live: typing on your computer' : 'Type to send'}
         placeholderTextColor={color.textMuted}
         autoCapitalize="none"
         autoCorrect={false}
         returnKeyType={live ? 'send' : 'default'}
         maxLength={500}
       />
-      <Pressable
-        accessibilityRole="switch"
-        accessibilityState={{ checked: live }}
-        accessibilityLabel="Live typing"
-        onPress={() => {
-          tick();
-          prev.current = '';
-          setText('');
-          setLive((v) => !v);
-        }}
-        style={[s.live, live && s.liveOn]}
-      >
-        {live ? <View style={s.liveDot} /> : null}
-        <Text style={[s.liveText, live && { color: color.amber }]}>Live</Text>
-      </Pressable>
-      {!live ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Send text"
-          onPress={submit}
-          disabled={!text}
-          style={[s.send, text ? s.sendReady : null]}
-        >
-          <Text style={[s.sendText, text ? { color: color.onAmber } : null]}>Send</Text>
+      {focused ? (
+        <Pressable accessibilityRole="button" accessibilityLabel="Hide keyboard" onPress={() => Keyboard.dismiss()} hitSlop={6} style={s.hide}>
+          <MaterialCommunityIcons name="chevron-down" size={22} color={color.textMuted} />
         </Pressable>
       ) : null}
+      </View>
+      {/* Always the same three round buttons. With text typed, Enter becomes the amber Send. */}
+      <Pressable accessibilityRole="button" accessibilityLabel="Backspace" onPress={() => { tick(); send({ type: 'key', key: 'backspace' }); }} style={s.round}>
+        <MaterialCommunityIcons name="backspace-outline" size={22} color={color.text} />
+      </Pressable>
+      {hasText ? (
+        <Pressable accessibilityRole="button" accessibilityLabel="Send text" onPress={submit} style={[s.round, s.sendReady]}>
+          <MaterialCommunityIcons name="send" size={22} color={color.onAmber} />
+        </Pressable>
+      ) : (
+        <Pressable accessibilityRole="button" accessibilityLabel="Enter" onPress={() => { tick(); send({ type: 'key', key: 'enter' }); }} style={s.round}>
+          <MaterialCommunityIcons name="keyboard-return" size={22} color={color.text} />
+        </Pressable>
+      )}
+      <Pressable accessibilityRole="switch" accessibilityState={{ checked: live }} accessibilityLabel="Live typing" onPress={toggleLive} style={[s.round, live && s.liveOn]}>
+        <MaterialCommunityIcons name="lightning-bolt" size={22} color={live ? color.amber : color.textMuted} />
+      </Pressable>
     </View>
   );
 }
 
 const H = 48; // one height for the field, Live and Send
 const s = StyleSheet.create({
-  bar: { flexDirection: 'row', gap: space.s, alignItems: 'center' },
-  field: { flex: 1, height: H, borderRadius: H / 2, backgroundColor: color.surface, borderWidth: 1, borderColor: color.rim, paddingHorizontal: space.m, ...t.body },
+  bar: { flexDirection: 'row', gap: space.s, alignItems: 'flex-start' },
+  fieldWrap: { flex: 1 },
+  // One line when idle; a fixed four-line height while typing (it scrolls inside), so it never resizes as you type.
+  field: { height: H, borderRadius: 24, paddingLeft: space.m, paddingRight: space.m, paddingVertical: 12, backgroundColor: color.surface, borderWidth: 1, borderColor: color.rim, textAlignVertical: 'center', ...t.body },
+  fieldOpen: { height: 104, paddingRight: 44, textAlignVertical: 'top' },
   fieldLive: { borderColor: color.amber },
-  // Live and Send are the same kind of control: a 48 dp pill with a soft rim.
-  live: { minWidth: 64, height: H, borderRadius: H / 2, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, backgroundColor: color.surface, borderWidth: 1, borderColor: color.rim, paddingHorizontal: space.m },
+  hide: { position: 'absolute', right: 6, top: 4, width: 36, height: 40, alignItems: 'center', justifyContent: 'center' },
+  round: { width: H, height: H, borderRadius: H / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: color.surface, borderWidth: 1, borderColor: color.rim },
   liveOn: { borderColor: color.amber },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: color.amber },
-  liveText: { fontSize: 13, fontWeight: '600', letterSpacing: 0.3, color: color.textMuted },
-  send: { minWidth: 68, height: H, borderRadius: H / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: color.surface, borderWidth: 1, borderColor: color.rim, paddingHorizontal: space.m },
   sendReady: { backgroundColor: color.amber, borderColor: 'rgba(255,255,255,0.18)' },
-  sendText: { fontSize: 13, fontWeight: '600', letterSpacing: 0.3, color: color.rimStrong },
 });

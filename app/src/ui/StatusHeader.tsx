@@ -6,13 +6,13 @@ import { color, space, TARGET, type as t } from '../theme';
 /** Words for every state: status is never conveyed by colour alone. */
 export function describe(state: ConnState): { word: string; kind: 'ok' | 'busy' | 'paused' | 'down'; hint?: string } {
   if (state.phase === 'connected') {
-    return state.status?.paused ? { word: 'Paused', kind: 'paused', hint: 'The Mac paused the remote' } : { word: 'Connected', kind: 'ok' };
+    return state.status?.paused ? { word: 'Paused', kind: 'paused', hint: 'The computer paused the remote' } : { word: 'Connected', kind: 'ok' };
   }
   if (state.phase === 'connecting') return { word: 'Connecting…', kind: 'busy' };
   const why: Record<Reason, { word: string; kind: 'paused' | 'down'; hint: string }> = {
-    unreachable: { word: "Can't reach your Mac", kind: 'down', hint: 'Is it awake and on the same Wi-Fi?' },
+    unreachable: { word: "Can't reach your computer", kind: 'down', hint: 'Is it awake and on the same Wi-Fi?' },
     lost: { word: 'Connection lost', kind: 'down', hint: 'Trying again…' },
-    paused: { word: 'Paused', kind: 'paused', hint: 'Resume it from the Mac' },
+    paused: { word: 'Paused', kind: 'paused', hint: 'Resume it from the computer' },
     rate_limited: { word: 'Slow down', kind: 'down', hint: 'Too many commands at once' },
     revoked: { word: 'Phone removed', kind: 'down', hint: 'Pair again to continue' },
     replaced: { word: 'Another device took over', kind: 'down', hint: 'Tap to reconnect' },
@@ -85,7 +85,7 @@ export function StatusHeader({ state, hostName, profile, showProfile, onReconnec
       {!connected && state.phase !== 'connecting' ? (
         <View style={s.banner} accessibilityLiveRegion="polite">
           {d.kind === 'paused' ? <MaterialCommunityIcons name="pause-circle-outline" size={22} color={color.textMuted} /> : null}
-          <Text style={[t.body, { flex: 1 }]}>{d.kind === 'paused' ? 'Paused on your Mac. Resume it there.' : (d.hint ?? d.word)}</Text>
+          <Text style={[t.body, { flex: 1 }]}>{d.kind === 'paused' ? 'Paused on your computer. Resume it there.' : (d.hint ?? d.word)}</Text>
           {state.reason === 'paused' ? null : (
             <Pressable accessibilityRole="button" onPress={state.needsRescan ? onRescan : onReconnect} style={s.bannerBtn}>
               <Text style={s.bannerBtnText}>{state.needsRescan ? 'Scan again' : 'Reconnect'}</Text>
