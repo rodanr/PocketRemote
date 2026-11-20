@@ -14,5 +14,5 @@ export function Group({ title, children, flex }: { title: string; children: Reac
 }
 
 const s = StyleSheet.create({
-  title: { fontSize: 11, fontWeight: '500', letterSpacing: 1, color: color.textMuted, marginBottom: space.xs, marginLeft: space.xs },
+  title: { fontSize: 12, fontWeight: '500', letterSpacing: 0.4, color: color.textMuted, marginBottom: space.xs, marginLeft: space.xs },
 });

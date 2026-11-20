@@ -36,8 +36,8 @@ export function ConnectionDialog({ state, onReconnect, onRescan }: Props) {
 
 const s = StyleSheet.create({
   scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(7,7,10,0.78)', alignItems: 'center', justifyContent: 'center', padding: space.l },
-  card: { width: '100%', maxWidth: 360, borderRadius: 24, padding: space.l, backgroundColor: color.groove, borderWidth: 1, borderColor: color.rim, gap: space.s },
+  card: { width: '100%', maxWidth: 360, borderRadius: 16, padding: space.l, backgroundColor: color.panel, borderWidth: 1, borderColor: color.rim, gap: space.s },
   body: { color: color.textMuted },
-  button: { minHeight: TARGET, borderRadius: TARGET / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: color.amber, marginTop: space.s },
+  button: { minHeight: TARGET, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: color.amber, marginTop: space.s },
   buttonText: { color: color.onAmber, fontSize: 15, fontWeight: '600', letterSpacing: 0.3 },
 });

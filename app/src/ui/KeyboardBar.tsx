@@ -2,7 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useEffect, useRef, useState } from 'react';
 import { Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import type { Message } from '../protocol';
-import { color, space, type as t } from '../theme';
+import { color, radius, space, type as t } from '../theme';
 import { tick } from './haptics';
 
 interface Props {
@@ -126,13 +126,13 @@ const s = StyleSheet.create({
   bar: { flexDirection: 'row', gap: space.s, alignItems: 'flex-start' },
   fieldWrap: { flex: 1 },
   // One line when idle; a fixed four-line height while typing (it scrolls inside), so it never resizes as you type.
-  field: { height: H, borderRadius: 24, paddingLeft: space.m, paddingRight: space.m, paddingVertical: 12, backgroundColor: color.surface, borderWidth: 1, borderColor: color.rim, textAlignVertical: 'center', ...t.body },
+  field: { height: H, borderRadius: radius.m, paddingLeft: space.m, paddingRight: space.m, paddingVertical: 12, backgroundColor: color.surface, borderWidth: 1, borderColor: color.rim, textAlignVertical: 'center', ...t.body },
   fieldOpen: { height: 104, paddingRight: 52, textAlignVertical: 'top' },
   fieldLive: { borderColor: color.amber },
   hide: { position: 'absolute', right: 8, top: 8, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   // A clear filled circle: the app's own way out of typing, so the Back key is never needed.
-  hideDot: { width: 32, height: 32, borderRadius: 16, backgroundColor: color.surfacePressed, borderWidth: 1, borderColor: color.rimStrong, alignItems: 'center', justifyContent: 'center' },
-  round: { width: H, height: H, borderRadius: H / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: color.surface, borderWidth: 1, borderColor: color.rim },
+  hideDot: { width: 32, height: 32, borderRadius: 10, backgroundColor: color.surfacePressed, borderWidth: 1, borderColor: color.rimStrong, alignItems: 'center', justifyContent: 'center' },
+  round: { width: H, height: H, borderRadius: radius.m, alignItems: 'center', justifyContent: 'center', backgroundColor: color.surface, borderWidth: 1, borderColor: color.rim },
   liveOn: { borderColor: color.amber },
   sendReady: { backgroundColor: color.amber, borderColor: 'rgba(255,255,255,0.18)' },
 });

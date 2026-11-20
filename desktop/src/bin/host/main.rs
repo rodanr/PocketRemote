@@ -17,17 +17,74 @@ use pocketremote::server::ServerEvent;
 use std::time::{Duration, Instant};
 use tray::{Action, Look, Tray};
 
-// ---- Aisle Light colours (docs/design-brief.md) ----
-const GROUND: Color = Color::from_rgb(0.027, 0.027, 0.039); // #07070a
-const SURFACE: Color = Color::from_rgb(0.110, 0.098, 0.078); // #1c1914
-const PRESSED: Color = Color::from_rgb(0.165, 0.145, 0.110); // #2a251c
-const RIM: Color = Color::from_rgb(0.149, 0.133, 0.098); // #262219
-const TEXT: Color = Color::from_rgb(0.910, 0.886, 0.839); // #e8e2d6
-const MUTED: Color = Color::from_rgb(0.627, 0.541, 0.416); // #a08a6a
+// ---- Aisle Light palettes (docs/design-brief.md; reviewed with Opus). The panel follows the system
+// light/dark setting. Buttons carry a 3:1 edge so they read as buttons; amber stays the lead action.
+#[derive(Clone, Copy)]
+struct Pal {
+    ground: Color,
+    card: Color,
+    card_border: Color,
+    text: Color,
+    muted: Color,
+    /// Amber used as text (code digits): darker in light mode so it stays readable.
+    amber_text: Color,
+    ok: Color,
+    danger: Color,
+    btn: Color,
+    btn_hover: Color,
+    btn_pressed: Color,
+    btn_border: Color,
+    lead_border: Color,
+    track: Color,
+    divider: Color,
+}
+
 const AMBER: Color = Color::from_rgb(1.0, 0.706, 0.329); // #ffb454
-const OK: Color = Color::from_rgb(0.373, 0.827, 0.553); // #5fd38d
-const DANGER: Color = Color::from_rgb(1.0, 0.420, 0.353); // #ff6b5a
-const ON_AMBER: Color = Color::from_rgb(0.067, 0.047, 0.020);
+const ON_AMBER: Color = Color::from_rgb(0.102, 0.071, 0.031); // #1a1208
+
+const fn rgb(r: u8, g: u8, b: u8) -> Color {
+    Color::from_rgb(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0)
+}
+
+fn pal(dark: bool) -> Pal {
+    if dark {
+        Pal {
+            ground: rgb(0x1c, 0x1b, 0x19),
+            card: rgb(0x26, 0x24, 0x21),
+            card_border: rgb(0x34, 0x31, 0x2c),
+            text: rgb(0xf2, 0xee, 0xe8),
+            muted: rgb(0xb0, 0xa0, 0x8a),
+            amber_text: AMBER,
+            ok: rgb(0x5f, 0xd3, 0x8d),
+            danger: rgb(0xff, 0x7a, 0x6a),
+            btn: rgb(0x46, 0x42, 0x3c),
+            btn_hover: rgb(0x4d, 0x49, 0x43),
+            btn_pressed: rgb(0x52, 0x4d, 0x46),
+            btn_border: rgb(0x75, 0x6d, 0x61),
+            lead_border: rgb(0xc9, 0x8a, 0x2e),
+            track: rgb(0x34, 0x31, 0x2c),
+            divider: rgb(0x34, 0x31, 0x2c),
+        }
+    } else {
+        Pal {
+            ground: rgb(0xf4, 0xf1, 0xec),
+            card: rgb(0xff, 0xff, 0xff),
+            card_border: rgb(0xdc, 0xd6, 0xcc),
+            text: rgb(0x1f, 0x1c, 0x18),
+            muted: rgb(0x6b, 0x61, 0x52),
+            amber_text: rgb(0x9a, 0x5a, 0x00),
+            ok: rgb(0x1f, 0x8a, 0x4c),
+            danger: rgb(0xc2, 0x38, 0x2b),
+            btn: rgb(0xff, 0xff, 0xff),
+            btn_hover: rgb(0xf3, 0xef, 0xe9),
+            btn_pressed: rgb(0xeb, 0xe6, 0xde),
+            btn_border: rgb(0x8f, 0x85, 0x77),
+            lead_border: rgb(0xb9, 0x7a, 0x1f),
+            track: rgb(0xeb, 0xe6, 0xde),
+            divider: rgb(0xe6, 0xe0, 0xd6),
+        }
+    }
+}
 
 /// Only one copy may run: two would fight over the port and the paired phone.
 fn single_instance() -> Option<std::fs::File> {
@@ -45,21 +102,22 @@ fn main() -> iced::Result {
     };
     iced::daemon(boot, update, view)
         .title(|_: &App, _| "PocketRemote".to_string())
-        .theme(|_: &App, _| theme())
+        .theme(|app: &App, _| theme(app.dark))
         .subscription(subscription)
         .run()
 }
 
-fn theme() -> Theme {
+fn theme(dark: bool) -> Theme {
+    let p = pal(dark);
     Theme::custom(
         "Aisle Light".to_string(),
         iced::theme::Palette {
-            background: GROUND,
-            text: TEXT,
+            background: p.ground,
+            text: p.text,
             primary: AMBER,
-            success: OK,
+            success: p.ok,
             warning: AMBER,
-            danger: DANGER,
+            danger: p.danger,
         },
     )
 }
@@ -88,6 +146,7 @@ struct App {
     approval: Option<String>,
     confirm_revoke: bool,
     at_login: bool,
+    dark: bool,
     notice: Option<String>,
 }
 
@@ -108,6 +167,7 @@ enum Msg {
     AllowNetwork,
     OpenAccessibility,
     ToggleLogin,
+    SystemTheme(iced::theme::Mode),
     Quit,
 }
 
@@ -124,6 +184,7 @@ fn boot() -> (App, Task<Msg>) {
         approval: None,
         confirm_revoke: false,
         at_login: login::enabled(),
+        dark: true,
         notice: None,
     };
     // The tray must be created on the main thread after the event loop has started.
@@ -134,6 +195,7 @@ fn subscription(_: &App) -> Subscription<Msg> {
     Subscription::batch([
         Subscription::run(engine::worker).map(Msg::Engine),
         window::close_events().map(Msg::Closed),
+        iced::system::theme_changes().map(Msg::SystemTheme),
         time::every(Duration::from_millis(250)).map(|_| Msg::Tick),
     ])
 }
@@ -174,7 +236,7 @@ impl App {
             Some(id) => window::gain_focus(id),
             None => {
                 let (_, task) = window::open(window::Settings {
-                    size: iced::Size::new(440.0, 640.0),
+                    size: iced::Size::new(400.0, 560.0),
                     resizable: false,
                     ..window::Settings::default()
                 });
@@ -221,8 +283,11 @@ fn update(app: &mut App, msg: Msg) -> Task<Msg> {
                 Ok(t) => app.tray = Some(t),
                 Err(e) => app.notice = Some(format!("Menu-bar icon unavailable: {e}")),
             }
-            // First run, or an unfinished setup: show the panel.
-            return app.open_panel();
+            // First run, or an unfinished setup: show the panel. Also ask for the system light/dark setting.
+            return Task::batch([
+                app.open_panel(),
+                iced::system::theme().map(Msg::SystemTheme),
+            ]);
         }
         Msg::Tick => {
             app.refresh();
@@ -366,6 +431,7 @@ fn update(app: &mut App, msg: Msg) -> Task<Msg> {
             Ok(()) => app.at_login = login::enabled(),
             Err(_) => app.notice = Some("Could not change the launch-at-login setting.".into()),
         },
+        Msg::SystemTheme(mode) => app.dark = !matches!(mode, iced::theme::Mode::Light),
         Msg::Quit => return iced::exit(),
     }
     app.refresh();
@@ -395,35 +461,53 @@ enum Kind {
     Quiet,
 }
 
-fn btn(label: &str, kind: Kind, msg: Msg) -> Element<'_, Msg> {
-    button(
-        text(label)
-            .size(15)
-            .width(Length::Fill)
-            .align_x(alignment::Horizontal::Center),
-    )
-    .padding([13, 18])
-    .width(Length::Fill)
+fn semibold() -> iced::Font {
+    iced::Font {
+        weight: iced::font::Weight::Semibold,
+        ..iced::Font::DEFAULT
+    }
+}
+
+/// A real button: filled, with a visible edge. Hugs its label (Mac style), 30 px high.
+fn btn<'a>(p: Pal, label: &'a str, kind: Kind, msg: Msg) -> Element<'a, Msg> {
+    button(text(label).size(13).font(iced::Font {
+        weight: iced::font::Weight::Medium,
+        ..iced::Font::DEFAULT
+    }))
+    .padding([7, 16])
     .on_press(msg)
     .style(move |_, status| {
-        let pressed = matches!(status, button::Status::Pressed | button::Status::Hovered);
+        let hover = matches!(status, button::Status::Hovered);
+        let down = matches!(status, button::Status::Pressed);
         let (bg, fg, border) = match kind {
             Kind::Lead => (
-                if pressed {
-                    Color::from_rgb(0.91, 0.624, 0.243)
+                if down {
+                    rgb(0xe8, 0x9f, 0x3e)
+                } else if hover {
+                    rgb(0xff, 0xc0, 0x70)
                 } else {
                     AMBER
                 },
                 ON_AMBER,
-                Color::from_rgba(1.0, 1.0, 1.0, 0.18),
+                p.lead_border,
             ),
-            Kind::Normal => (if pressed { PRESSED } else { SURFACE }, TEXT, RIM),
+            Kind::Normal => (
+                if down {
+                    p.btn_pressed
+                } else if hover {
+                    p.btn_hover
+                } else {
+                    p.btn
+                },
+                p.text,
+                p.btn_border,
+            ),
             Kind::Quiet => (
                 Color::TRANSPARENT,
-                if pressed {
-                    Color::from_rgb(1.0, 0.55, 0.5)
+                if hover || down {
+                    Color { a: 0.8, ..p.danger }
                 } else {
-                    DANGER
+                    p.danger
                 },
                 Color::TRANSPARENT,
             ),
@@ -432,7 +516,7 @@ fn btn(label: &str, kind: Kind, msg: Msg) -> Element<'_, Msg> {
             background: Some(Background::Color(bg)),
             text_color: fg,
             border: Border {
-                radius: 16.0.into(),
+                radius: 8.0.into(),
                 width: 1.0,
                 color: border,
             },
@@ -442,33 +526,33 @@ fn btn(label: &str, kind: Kind, msg: Msg) -> Element<'_, Msg> {
     .into()
 }
 
-fn card<'a>(content: impl Into<Element<'a, Msg>>) -> Element<'a, Msg> {
+fn card<'a>(p: Pal, content: impl Into<Element<'a, Msg>>) -> Element<'a, Msg> {
     container(content)
-        .padding(20)
+        .padding(16)
         .width(Length::Fill)
-        .style(|_| container::Style {
-            background: Some(Background::Color(SURFACE)),
+        .style(move |_| container::Style {
+            background: Some(Background::Color(p.card)),
             border: Border {
-                radius: 20.0.into(),
+                radius: 10.0.into(),
                 width: 1.0,
-                color: RIM,
+                color: p.card_border,
             },
             ..container::Style::default()
         })
         .into()
 }
 
-fn heading<'a>(s: impl iced::widget::text::IntoFragment<'a>) -> iced::widget::Text<'a> {
-    text(s).size(20).color(TEXT)
+fn heading<'a>(p: Pal, s: impl iced::widget::text::IntoFragment<'a>) -> iced::widget::Text<'a> {
+    text(s).size(15).font(semibold()).color(p.text)
 }
 
-fn body<'a>(s: impl iced::widget::text::IntoFragment<'a>) -> iced::widget::Text<'a> {
-    text(s).size(14).color(MUTED)
+fn body<'a>(p: Pal, s: impl iced::widget::text::IntoFragment<'a>) -> iced::widget::Text<'a> {
+    text(s).size(13).color(p.muted)
 }
 
-/// Small muted section label.
-fn label<'a>(s: impl iced::widget::text::IntoFragment<'a>) -> iced::widget::Text<'a> {
-    text(s).size(12).color(MUTED)
+/// Small section label above a card.
+fn section<'a>(p: Pal, s: &'a str) -> iced::widget::Text<'a> {
+    text(s).size(12).font(semibold()).color(p.muted)
 }
 
 fn grouped(code: &str) -> String {
@@ -479,12 +563,12 @@ fn grouped(code: &str) -> String {
 /// A round status dot (shape plus words: the words are always shown beside it).
 fn dot<'a>(c: Color) -> Element<'a, Msg> {
     container(text(""))
-        .width(14)
-        .height(14)
+        .width(10)
+        .height(10)
         .style(move |_| container::Style {
             background: Some(Background::Color(c)),
             border: Border {
-                radius: 7.0.into(),
+                radius: 5.0.into(),
                 ..Border::default()
             },
             ..container::Style::default()
@@ -493,11 +577,11 @@ fn dot<'a>(c: Color) -> Element<'a, Msg> {
 }
 
 /// One settings row: title and a short hint on the left, a switch on the right.
-fn setting<'a>(title: &'a str, hint: &'a str, on: bool, msg: Msg) -> Element<'a, Msg> {
+fn setting<'a>(p: Pal, title: &'a str, hint: &'a str, on: bool, msg: Msg) -> Element<'a, Msg> {
     row![
         column![
-            text(title).size(15).color(TEXT),
-            text(hint).size(12).color(MUTED)
+            text(title).size(13).color(p.text),
+            text(hint).size(12).color(p.muted)
         ]
         .spacing(2)
         .width(Length::Fill),
@@ -508,232 +592,284 @@ fn setting<'a>(title: &'a str, hint: &'a str, on: bool, msg: Msg) -> Element<'a,
     .into()
 }
 
-fn rule<'a>() -> Element<'a, Msg> {
+fn rule<'a>(p: Pal) -> Element<'a, Msg> {
     container(text(""))
         .width(Length::Fill)
         .height(1)
-        .style(|_| container::Style {
-            background: Some(Background::Color(RIM)),
+        .style(move |_| container::Style {
+            background: Some(Background::Color(p.divider)),
             ..container::Style::default()
         })
         .into()
 }
 
+/// Buttons in one row, aligned right (Mac style), the lead one last.
+fn actions<'a>(items: Vec<Element<'a, Msg>>) -> Element<'a, Msg> {
+    container(row(items).spacing(8))
+        .width(Length::Fill)
+        .align_x(alignment::Horizontal::Right)
+        .into()
+}
+
 /// Title, one calm sentence, and the colour of the dot.
-fn hero(app: &App) -> (String, String, Color) {
+fn hero(app: &App, p: Pal) -> (String, String, Color) {
     match &app.phase {
-        Phase::Starting => ("Starting…".into(), "One moment.".into(), MUTED),
+        Phase::Starting => ("Starting…".into(), "One moment.".into(), p.muted),
         Phase::NoPermission => (
-            "Needs your permission".into(),
-            "One quick step in System Settings.".into(),
-            AMBER,
+            "Needs permission".into(),
+            "One step in System Settings.".into(),
+            p.amber_text,
         ),
         Phase::Failed(_) => (
             "Can't start".into(),
             "See the message below.".into(),
-            DANGER,
+            p.danger,
         ),
         Phase::Running(_) if app.untrusted.is_some() => (
             "Paused: new network".into(),
-            "Phones are blocked until you allow this network.".into(),
-            DANGER,
+            "Allow this network to continue.".into(),
+            p.danger,
         ),
         Phase::Running(_) if app.paused => (
             "Paused".into(),
-            "No phone can control this computer until you switch it back on.".into(),
-            DANGER,
+            "Phones can't control this computer.".into(),
+            p.danger,
         ),
-        Phase::Running(s) if app.connected => (
-            "Phone connected".into(),
-            format!("Controlling {}.", s.host_name),
+        Phase::Running(_) if app.connected => (
+            "Connected".into(),
+            "Your phone is controlling this computer.".into(),
             AMBER,
         ),
         Phase::Running(_) if app.paired => (
             "Ready".into(),
-            "Open PocketRemote on your phone to connect.".into(),
-            OK,
+            "Open PocketRemote on your phone.".into(),
+            p.ok,
         ),
         Phase::Running(_) => (
-            "Not paired yet".into(),
-            "Pair your phone to get started.".into(),
-            MUTED,
+            "No phone paired".into(),
+            "Pair a phone to start.".into(),
+            p.muted,
         ),
     }
 }
 
 fn view(app: &App, _: window::Id) -> Element<'_, Msg> {
-    let (title, sub, tone) = hero(app);
-    let status = row![
-        dot(tone),
+    let p = pal(app.dark);
+    let (title, sub, tone) = hero(app, p);
+    // The dot sits on the title line only, not centred on the two-line block.
+    let header = row![
+        container(dot(tone)).padding(iced::Padding {
+            top: 7.0,
+            ..iced::Padding::ZERO
+        }),
         column![
-            text(title).size(26).color(TEXT),
-            text(sub).size(14).color(MUTED)
+            text(title).size(20).font(semibold()).color(p.text),
+            text(sub).size(13).color(p.muted)
         ]
-        .spacing(3)
+        .spacing(4)
         .width(Length::Fill)
     ]
-    .spacing(14)
-    .align_y(alignment::Vertical::Center);
+    .spacing(10);
 
     let main: Element<'_, Msg> = match &app.phase {
         Phase::Starting => column![].into(),
         Phase::NoPermission => card(
+            p,
             column![
-                heading("Allow control of this computer"),
-                body("macOS needs your OK before an app can move the pointer or press keys."),
+                heading(p, "Allow control of this computer"),
                 column![
-                    body("1.  Open System Settings below."),
-                    body("2.  Privacy & Security, then Accessibility."),
-                    body("3.  Switch on PocketRemote (or the app you started it from)."),
+                    body(p, "1.  Open System Settings below."),
+                    body(p, "2.  Go to Privacy & Security, then Accessibility."),
+                    body(
+                        p,
+                        "3.  Switch on PocketRemote (or the app you started it from)."
+                    ),
                 ]
                 .spacing(4),
-                btn("Open System Settings", Kind::Lead, Msg::OpenAccessibility),
-                label("This page notices on its own once it is on."),
+                actions(vec![btn(
+                    p,
+                    "Open System Settings",
+                    Kind::Lead,
+                    Msg::OpenAccessibility
+                )]),
+                body(p, "This page updates once it's on."),
             ]
-            .spacing(14),
+            .spacing(16),
         ),
-        Phase::Failed(m) => {
-            card(column![heading("Something stopped PocketRemote"), body(m.as_str())].spacing(10))
-        }
-        Phase::Running(s) => running(app, s),
+        Phase::Failed(m) => card(
+            p,
+            column![
+                heading(p, "Something stopped PocketRemote"),
+                body(p, m.as_str())
+            ]
+            .spacing(8),
+        ),
+        Phase::Running(s) => running(app, p, s),
     };
 
-    let mut page = column![label("POCKETREMOTE"), status, main].spacing(22);
+    let mut page = column![header, main].spacing(24);
     if let Some(n) = &app.notice {
-        page = page.push(text(n.as_str()).size(13).color(DANGER));
+        page = page.push(text(n.as_str()).size(12).color(p.danger));
     }
     container(page)
-        .padding([24, 24])
+        .padding(20)
         .width(Length::Fill)
         .height(Length::Fill)
-        .style(|_| container::Style {
-            background: Some(Background::Color(GROUND)),
+        .style(move |_| container::Style {
+            background: Some(Background::Color(p.ground)),
             ..container::Style::default()
         })
         .into()
 }
 
-fn running<'a>(app: &'a App, s: &'a engine::Started) -> Element<'a, Msg> {
+fn running<'a>(app: &'a App, p: Pal, s: &'a engine::Started) -> Element<'a, Msg> {
     // Highest priority first: approval, then the network question, then pairing, then the overview.
     if let Some(code) = &app.approval {
         return card(
+            p,
             column![
-                heading("Pair this phone?"),
-                body("Does your phone show the same code? Only approve if it does."),
-                container(text(grouped(code)).size(52).color(AMBER))
+                heading(p, "Pair this phone?"),
+                body(p, "Approve only if your phone shows this code."),
+                container(text(grouped(code)).size(40).color(p.amber_text))
                     .center_x(Length::Fill)
                     .padding([8, 0]),
-                row![
-                    btn("Reject", Kind::Normal, Msg::Reject),
-                    btn("Approve", Kind::Lead, Msg::Approve)
-                ]
-                .spacing(10),
+                actions(vec![
+                    btn(p, "Reject", Kind::Normal, Msg::Reject),
+                    btn(p, "Approve", Kind::Lead, Msg::Approve)
+                ]),
             ]
-            .spacing(14),
+            .spacing(16),
         );
     }
     if let Some(id) = &app.untrusted {
         return card(
+            p,
             column![
-                heading("Allow phones on this network?"),
-                text(id.as_str()).size(13).color(TEXT),
-                body("Only say yes on a network you trust, such as your home Wi-Fi. PocketRemote stays paused until you do."),
-                btn("Allow this network", Kind::Lead, Msg::AllowNetwork),
+                heading(p, "Allow phones on this network?"),
+                text(id.as_str()).size(12).color(p.muted),
+                body(p, "Only on a network you trust, like home Wi-Fi."),
+                actions(vec![btn(
+                    p,
+                    "Allow this network",
+                    Kind::Lead,
+                    Msg::AllowNetwork
+                )]),
             ]
-            .spacing(14),
+            .spacing(12),
         );
     }
-    if let Some(p) = &app.pairing {
+    if let Some(pairing) = &app.pairing {
         let total = 60.0_f32;
-        let left = p
+        let left = pairing
             .until
             .saturating_duration_since(Instant::now())
             .as_secs_f32();
         return card(
+            p,
             column![
-                heading("Scan with PocketRemote"),
-                body("Open the app on your phone, then point it at this code. Both on the same Wi-Fi."),
-                container(qr_code(&p.qr).total_size(250.0))
-                    .padding(16)
+                heading(p, "Scan with your phone"),
+                body(p, "Open PocketRemote and scan. Same Wi-Fi."),
+                // The QR plate is always white so every scanner can read it, in light or dark.
+                container(qr_code(&pairing.qr).total_size(210.0))
+                    .padding(12)
                     .center_x(Length::Fill)
                     .style(|_| container::Style {
-                        background: Some(Background::Color(Color::from_rgb(0.96, 0.95, 0.92))),
-                        border: Border { radius: 18.0.into(), ..Border::default() },
+                        background: Some(Background::Color(Color::WHITE)),
+                        border: Border {
+                            radius: 10.0.into(),
+                            ..Border::default()
+                        },
                         ..container::Style::default()
                     }),
-                iced::widget::progress_bar(0.0..=total, left.min(total)).girth(4).style(|_| iced::widget::progress_bar::Style {
-                    background: Background::Color(PRESSED),
-                    bar: Background::Color(AMBER),
-                    border: Border { radius: 2.0.into(), ..Border::default() },
-                }),
-                label(format!("Expires in {} s", left.ceil() as u32)),
+                iced::widget::progress_bar(0.0..=total, left.min(total))
+                    .girth(4)
+                    .style(move |_| iced::widget::progress_bar::Style {
+                        background: Background::Color(p.track),
+                        bar: Background::Color(AMBER),
+                        border: Border {
+                            radius: 2.0.into(),
+                            ..Border::default()
+                        },
+                    }),
+                body(p, format!("Expires in {} s", left.ceil() as u32)),
             ]
-            .spacing(14),
+            .spacing(12),
         );
     }
 
-    // Overview: your phone, then settings.
+    // Overview: phone, then settings.
     let phone_line = if app.connected {
         "Connected right now."
     } else if app.paired {
-        "Paired. It connects when you open the app."
+        "Paired."
     } else {
         "None yet."
     };
-    let mut phone = column![label("YOUR PHONE"), text(phone_line).size(16).color(TEXT)].spacing(8);
-    phone = phone.push(btn(
+    let mut buttons: Vec<Element<'a, Msg>> = Vec::new();
+    if app.connected {
+        buttons.push(btn(p, "Disconnect", Kind::Normal, Msg::Disconnect));
+    }
+    buttons.push(btn(
+        p,
         if app.paired {
-            "Pair a different phone"
+            "Pair new phone"
         } else {
             "Pair phone"
         },
         if app.paired { Kind::Normal } else { Kind::Lead },
         Msg::Pair,
     ));
-    if app.connected {
-        phone = phone.push(btn("Disconnect for now", Kind::Normal, Msg::Disconnect));
-    }
+    let mut phone_row = row![].align_y(alignment::Vertical::Center);
     if app.paired {
-        phone = phone.push(btn(
+        phone_row = phone_row.push(btn(
+            p,
             if app.confirm_revoke {
-                "Tap again to remove this phone"
+                "Click again to remove"
             } else {
-                "Remove this phone"
+                "Remove phone"
             },
             Kind::Quiet,
             Msg::Revoke,
         ));
     }
+    phone_row = phone_row.push(actions(buttons));
 
-    let mut settings = column![
-        label("SETTINGS"),
-        setting(
-            "Accept phones",
-            "Switch off to block every phone, right now.",
-            !app.paused,
-            Msg::TogglePause
-        ),
-    ]
-    .spacing(14);
+    let mut settings = column![setting(
+        p,
+        "Allow phone control",
+        "Off blocks your phone right away.",
+        !app.paused,
+        Msg::TogglePause
+    )]
+    .spacing(12);
     if login::supported() {
-        settings = settings.push(rule());
+        settings = settings.push(rule(p));
         settings = settings.push(setting(
+            p,
             "Open at login",
-            "Start PocketRemote when you sign in.",
+            "Start when you sign in.",
             app.at_login,
             Msg::ToggleLogin,
         ));
     }
 
     column![
-        card(phone.spacing(12)),
-        card(settings),
-        container(label(format!(
-            "Listening on {}. Everything stays on your Wi-Fi, encrypted.",
-            s.addr
-        )))
-        .padding([0, 4]),
+        column![
+            section(p, "Phone"),
+            card(
+                p,
+                column![text(phone_line).size(13).color(p.text), phone_row].spacing(12)
+            )
+        ]
+        .spacing(8),
+        column![section(p, "Settings"), card(p, settings)].spacing(8),
+        text(format!(
+            "{} · Wi-Fi only, encrypted · {}",
+            s.host_name, s.addr
+        ))
+        .size(11)
+        .color(p.muted),
     ]
-    .spacing(14)
+    .spacing(16)
     .into()
 }

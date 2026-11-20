@@ -16,7 +16,7 @@ export function MorePage({ send }: { send: (m: Message) => void }) {
   const key = (k: 'page_up' | 'page_down') => () => send({ type: 'key', key: k });
   return (
     <View style={s.page}>
-      <Group title="BROWSER">
+      <Group title="Browser">
         <View style={s.grid}>
           <View style={s.row}>
             <Key label="Browser back" text="Back" textSize={SIZE} onPress={browser('back')} />
@@ -30,7 +30,7 @@ export function MorePage({ send }: { send: (m: Message) => void }) {
           </View>
         </View>
       </Group>
-      <Group title="SLIDES">
+      <Group title="Slides">
         <View style={s.row}>
           <Key label="Previous slide" text="Previous slide" textSize={SIZE} onPress={key('page_up')} />
           <Key label="Next slide" text="Next slide" textSize={SIZE} onPress={key('page_down')} />

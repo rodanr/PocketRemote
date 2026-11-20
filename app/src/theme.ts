@@ -1,21 +1,23 @@
-// Design tokens for "Aisle Light" (docs/design-brief.md): near-black ground, one warm amber.
+// Design tokens for "Aisle Light" (docs/design-brief.md): a warm charcoal ground (not pure black), one warm amber.
+// Keys are lighter than the ground and carry a 3:1 edge, so they read as buttons (reviewed with Opus).
 // Amber is for the mark, the lead action and the active state only.
 export const color = {
-  ground: '#07070a',
-  surface: '#1c1914',
-  surfacePressed: '#2a251c',
-  rim: '#262219', // a soft highlight on the edge of a key, not an outline
-  rimStrong: '#3a3226',
-  groove: '#121009', // recessed areas (sheet background, the well around OK)
-  trackpad: '#0e0d0b',
+  ground: '#141210',
+  surface: '#2e2a24', // key fill
+  surfacePressed: '#3a352d',
+  panel: '#1f1c18', // large surfaces: trackpad, dialogs
+  rim: '#6b6152', // key edge, about 3:1 against the ground
+  rimStrong: '#4a4338',
+  groove: '#0c0b09', // recessed areas (the well around OK)
+  trackpad: '#1f1c18',
   outline: '#6b5a3e', // about 3:1: used only on unfilled controls (Live, Close tab), never on filled keys
-  hairline: '#2a251c', // quiet edge for large surfaces such as the trackpad
-  text: '#e8e2d6',
-  textMuted: '#a08a6a', // about 6:1 on the ground
+  hairline: '#34302a', // quiet edge for large surfaces such as the trackpad
+  text: '#ede7dc',
+  textMuted: '#b0a08a', // about 7:1 on the ground
   amber: '#ffb454',
   onAmber: '#1a1208',
   ok: '#5fd38d',
-  danger: '#ff6b5a',
+  danger: '#ff7a6a',
 } as const;
 
 /** One 8 dp rhythm. */

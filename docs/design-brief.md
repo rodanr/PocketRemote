@@ -61,3 +61,8 @@ Three swipeable pages (dots above the trackpad show which one):
 - **Settings** is a dedicated full-screen page (back arrow; Android Back returns to the remote), not a bottom sheet.
 - **No connection:** a dialog card floats over the controls, below the header, so nothing is pushed down and Settings stays reachable. Paused shows "Paused on your computer", others show the reason with Reconnect (or Scan again when pairing is needed).
 - **Page dots** are 4 dp and sit inside the existing gap above the trackpad, so they cost no height.
+
+## Addendum 2026-11-20 (visibility pass, reviewed with Opus)
+- **Why:** keys (#1c1914) on the ground (#07070a) were about 1.15:1, so they vanished. Dark fills alone cannot reach 3:1, so the edge carries it.
+- **Phone palette:** ground #141210, key #2e2a24 with a 1 dp #6b6152 edge (about 3:1), panel/trackpad #1f1c18, text #ede7dc, muted #b0a08a, danger #ff7a6a. One key radius (16); only the D-pad and OK stay round. Sentence-case labels. Settings: 48 dp keys, fixed value slot, full-width "Forget this computer" danger key.
+- **Mac panel:** follows the system light/dark setting (iced `system::theme`). Dark: ground #1c1b19, card #262421, button #46423c with #756d61 edge. Light: ground #f4f1ec, white cards, white buttons with #8f8577 edge, amber text #9a5a00. Buttons hug their label, 30 px high, radius 8; cards radius 10; actions right-aligned, lead last; Remove is a quiet red text button. Window 400x560. The QR plate is always white.

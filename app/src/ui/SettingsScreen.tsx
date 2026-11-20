@@ -29,7 +29,7 @@ function Stepper({ label, value, display, onDec, onInc }: { label: string; value
         <Pressable accessibilityLabel={`Decrease ${label}`} onPress={() => { tick(); onDec(); }} style={s.step}>
           <Text style={s.stepText}>−</Text>
         </Pressable>
-        <Text style={[t.body, { minWidth: 44, textAlign: 'center' }]} aria-hidden={value < 0}>{display}</Text>
+        <Text style={[t.body, { minWidth: 64, textAlign: 'center', fontVariant: ['tabular-nums'] }]} aria-hidden={value < 0}>{display}</Text>
         <Pressable accessibilityLabel={`Increase ${label}`} onPress={() => { tick(); onInc(); }} style={s.step}>
           <Text style={s.stepText}>+</Text>
         </Pressable>
@@ -51,14 +51,15 @@ export function SettingsScreen({ settings, hostName, onChange, onBack, onForget 
         <Text style={t.title} accessibilityRole="header">Settings</Text>
       </View>
       <ScrollView contentContainerStyle={s.content}>
-        <Stepper label="Pointer speed" value={settings.speed} display={`${settings.speed.toFixed(2)}×`} onDec={() => onChange({ ...settings, speed: Math.max(0.5, round(settings.speed - 0.25)) })} onInc={() => onChange({ ...settings, speed: Math.min(4, round(settings.speed + 0.25)) })} />
+        <Text style={[t.label, { marginBottom: space.xs }]} accessibilityRole="header">Pointer</Text>
+        <Stepper label="Speed" value={settings.speed} display={`${settings.speed.toFixed(2)}×`} onDec={() => onChange({ ...settings, speed: Math.max(0.5, round(settings.speed - 0.25)) })} onInc={() => onChange({ ...settings, speed: Math.min(4, round(settings.speed + 0.25)) })} />
         <Stepper label="Acceleration" value={settings.acceleration} display={`${Math.round(settings.acceleration * 100)}%`} onDec={() => onChange({ ...settings, acceleration: Math.max(0, round(settings.acceleration - 0.25)) })} onInc={() => onChange({ ...settings, acceleration: Math.min(1, round(settings.acceleration + 0.25)) })} />
         <View style={s.row}>
           <Text style={t.body}>Natural scroll</Text>
           <Switch value={settings.naturalScroll} onValueChange={(v) => onChange({ ...settings, naturalScroll: v })} trackColor={{ true: color.amber, false: color.surface }} thumbColor={color.text} accessibilityLabel="Natural scroll" />
         </View>
         <Text style={[t.label, { marginTop: space.m, marginBottom: space.s }]} accessibilityRole="header">
-          TRACKPAD GESTURES
+          Trackpad gestures
         </Text>
         {GESTURES.map(([how, what]) => (
           <View key={how} style={s.gesture} accessible accessibilityLabel={`${how}: ${what}`}>
@@ -67,8 +68,9 @@ export function SettingsScreen({ settings, hostName, onChange, onBack, onForget 
           </View>
         ))}
         <Pressable accessibilityRole="button" onPress={onForget} style={s.forget}>
-          <Text style={{ color: color.danger, fontSize: 15 }}>Forget {hostName} and pair again</Text>
+          <Text style={s.forgetText}>Forget this computer</Text>
         </Pressable>
+        <Text style={s.forgetHint}>Removes {hostName}. You can pair again afterwards.</Text>
       </ScrollView>
     </View>
   );
@@ -81,10 +83,12 @@ const s = StyleSheet.create({
   content: { padding: space.l, paddingTop: space.m },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 56 },
   stepper: { flexDirection: 'row', alignItems: 'center' },
-  step: { width: TARGET, height: TARGET, borderRadius: TARGET / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: color.surface, borderWidth: 1, borderColor: color.rim },
+  step: { width: TARGET, height: TARGET, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: color.surface, borderWidth: 1, borderColor: color.rim },
   stepText: { color: color.text, fontSize: 22 },
   gesture: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#1f1b15' },
   how: { ...t.body, fontSize: 14, color: color.text },
   what: { ...t.body, fontSize: 14, color: color.textMuted },
-  forget: { minHeight: TARGET, justifyContent: 'center', marginTop: space.m },
+  forget: { minHeight: TARGET, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: space.l, backgroundColor: color.surface, borderWidth: 1, borderColor: 'rgba(255,122,106,0.6)' },
+  forgetText: { color: color.danger, fontSize: 15, fontWeight: '500' },
+  forgetHint: { ...t.body, fontSize: 12, color: color.textMuted, textAlign: 'center', marginTop: space.s },
 });

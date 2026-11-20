@@ -98,6 +98,6 @@ export function Trackpad({ send, settings, dim }: Props) {
 }
 
 const s = StyleSheet.create({
-  pad: { flex: 1, minHeight: 160, borderRadius: 24, backgroundColor: color.trackpad, borderWidth: 1, borderColor: color.rim, overflow: 'hidden' },
+  pad: { flex: 1, minHeight: 160, borderRadius: 16, backgroundColor: color.trackpad, borderWidth: 1, borderColor: color.hairline, overflow: 'hidden' },
   dot: { position: 'absolute', backgroundColor: color.amber },
 });

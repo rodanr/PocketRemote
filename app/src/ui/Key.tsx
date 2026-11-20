@@ -95,9 +95,9 @@ const s = StyleSheet.create({
   face: { flex: 1, borderRadius: radius.m, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, paddingHorizontal: 6 },
   normal: { backgroundColor: color.surface, borderColor: color.rim },
   pressed: { backgroundColor: color.surfacePressed, borderColor: color.rim },
-  lead: { backgroundColor: color.amber, borderColor: 'rgba(255,255,255,0.18)' },
-  leadPressed: { backgroundColor: '#e89f3e', borderColor: 'rgba(255,255,255,0.18)' },
-  danger: { backgroundColor: color.surface, borderColor: 'rgba(255,107,90,0.45)' },
-  dangerPressed: { backgroundColor: 'rgba(255,107,90,0.14)', borderColor: 'rgba(255,107,90,0.45)' },
+  lead: { backgroundColor: color.amber, borderColor: '#c98a2e' },
+  leadPressed: { backgroundColor: '#e89f3e', borderColor: '#c98a2e' },
+  danger: { backgroundColor: color.surface, borderColor: 'rgba(255,122,106,0.6)' },
+  dangerPressed: { backgroundColor: 'rgba(255,122,106,0.16)', borderColor: 'rgba(255,122,106,0.6)' },
   text: { fontWeight: '500', letterSpacing: 0.1, flexShrink: 1, textAlign: 'center' },
 });
