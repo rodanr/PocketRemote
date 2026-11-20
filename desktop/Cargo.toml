@@ -11,11 +11,12 @@ getrandom = "0.4.3"
 httparse = "1.10.1"
 if-addrs = "0.15.0"
 keyring-core = "1.0.1"
+qrcode = { version = "0.15.0", default-features = false, features = ["std"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 snow = { version = "0.10.0", default-features = false, features = ["default-resolver", "use-chacha20poly1305", "use-sha2", "use-curve25519", "use-getrandom", "std"] }
 subtle = "2.6.1"
-tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util"] }
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util", "io-std"] }
 tokio-tungstenite = "0.30.0"
 zeroize = "1.9.2"
 
