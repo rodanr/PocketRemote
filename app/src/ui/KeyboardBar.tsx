@@ -101,22 +101,22 @@ export function KeyboardBar({ send, onTyping }: Props) {
         </Pressable>
       ) : null}
       </View>
-      {/* Always the same three round buttons. With text typed, Enter becomes the amber Send. */}
+      {/* Backspace and Enter always act on the computer (to fix or submit its own text boxes). The last slot is Send once you have typed text, otherwise the Live switch. */}
       <Pressable accessibilityRole="button" accessibilityLabel="Backspace" onPress={() => { tick(); send({ type: 'key', key: 'backspace' }); }} style={s.round}>
         <MaterialCommunityIcons name="backspace-outline" size={22} color={color.text} />
+      </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Enter" onPress={() => { tick(); send({ type: 'key', key: 'enter' }); }} style={s.round}>
+        <MaterialCommunityIcons name="keyboard-return" size={22} color={color.text} />
       </Pressable>
       {hasText ? (
         <Pressable accessibilityRole="button" accessibilityLabel="Send text" onPress={submit} style={[s.round, s.sendReady]}>
           <MaterialCommunityIcons name="send" size={22} color={color.onAmber} />
         </Pressable>
       ) : (
-        <Pressable accessibilityRole="button" accessibilityLabel="Enter" onPress={() => { tick(); send({ type: 'key', key: 'enter' }); }} style={s.round}>
-          <MaterialCommunityIcons name="keyboard-return" size={22} color={color.text} />
+        <Pressable accessibilityRole="switch" accessibilityState={{ checked: live }} accessibilityLabel="Live typing" onPress={toggleLive} style={[s.round, live && s.liveOn]}>
+          <MaterialCommunityIcons name="lightning-bolt" size={22} color={live ? color.amber : color.textMuted} />
         </Pressable>
       )}
-      <Pressable accessibilityRole="switch" accessibilityState={{ checked: live }} accessibilityLabel="Live typing" onPress={toggleLive} style={[s.round, live && s.liveOn]}>
-        <MaterialCommunityIcons name="lightning-bolt" size={22} color={live ? color.amber : color.textMuted} />
-      </Pressable>
     </View>
   );
 }
