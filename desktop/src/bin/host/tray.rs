@@ -22,44 +22,17 @@ pub enum Action {
     Quit,
 }
 
-const N: u32 = 44; // 22 pt at 2x
-
-fn pixels(look: Look) -> Vec<u8> {
-    let mut px = vec![0u8; (N * N * 4) as usize];
-    let c = (N as f32 - 1.0) / 2.0;
-    for y in 0..N {
-        for x in 0..N {
-            let (dx, dy) = (x as f32 - c, y as f32 - c);
-            let d = (dx * dx + dy * dy).sqrt();
-            // 1 inside the shape, with a one-pixel soft edge.
-            let edge = |inner: f32, outer: f32| {
-                ((d - inner + 0.5).clamp(0.0, 1.0) * (outer - d + 0.5).clamp(0.0, 1.0))
-                    .clamp(0.0, 1.0)
-            };
-            let (a, rgb) = match look {
-                Look::Controlled => (edge(-1.0, 13.0), [255u8, 180, 84]),
-                Look::Waiting => (edge(9.0, 13.0), [0, 0, 0]),
-                Look::Paused => {
-                    let ring = edge(9.0, 13.0);
-                    let bar =
-                        if (dy.abs() < 5.5) && ((dx - 3.0).abs() < 1.6 || (dx + 3.0).abs() < 1.6) {
-                            1.0
-                        } else {
-                            0.0
-                        };
-                    (ring.max(bar), [0, 0, 0])
-                }
-            };
-            let i = ((y * N + x) * 4) as usize;
-            px[i..i + 3].copy_from_slice(&rgb);
-            px[i + 3] = (a * 255.0) as u8;
-        }
-    }
-    px
-}
+/// The logo kit's tray icons (36 px = 18 pt at 2x), embedded as raw RGBA.
+/// Regenerate with `python3 brand/build/make_tray_rgba.py`.
+const SIZE: u32 = 36;
 
 fn icon(look: Look) -> Icon {
-    Icon::from_rgba(pixels(look), N, N).expect("valid icon")
+    let rgba: &[u8] = match look {
+        Look::Waiting => include_bytes!("../../../assets/tray/tray-waiting.rgba"),
+        Look::Paused => include_bytes!("../../../assets/tray/tray-paused.rgba"),
+        Look::Controlled => include_bytes!("../../../assets/tray/tray-controlled.rgba"),
+    };
+    Icon::from_rgba(rgba.to_vec(), SIZE, SIZE).expect("valid icon")
 }
 
 pub struct Tray {

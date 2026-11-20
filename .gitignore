@@ -7,3 +7,6 @@ desktop/fuzz/target/
 desktop/fuzz/corpus/
 desktop/fuzz/artifacts/
 .impeccable/
+
+# build output
+dist/
