@@ -10,7 +10,7 @@ import { Key } from './Key';
  * Mute and Esc to the right.
  */
 export function MainPage({ send, active }: { send: (m: Message) => void; active: boolean }) {
-  const media = (action: 'play_pause' | 'mute' | 'vol_up' | 'vol_down') => () => send({ type: 'media', action });
+  const media = (action: 'play_pause' | 'mute' | 'vol_up' | 'vol_down' | 'prev' | 'next') => () => send({ type: 'media', action });
   const player = (action: 'seek_back' | 'seek_fwd' | 'fullscreen' | 'captions') => () => send({ type: 'player', action });
   return (
     <View style={s.page}>
@@ -20,8 +20,10 @@ export function MainPage({ send, active }: { send: (m: Message) => void; active:
         <Key label="Forward 10 seconds" icon="fast-forward-10" onPress={player('seek_fwd')} />
       </View>
       <View style={s.row}>
-        <Key label="Volume down" icon="volume-minus" repeat onPress={media('vol_down')} />
-        <Key label="Volume up" icon="volume-plus" repeat onPress={media('vol_up')} />
+        <Key label="Previous track" icon="skip-previous" onPress={media('prev')} />
+        <Key label="Volume down" icon="volume-minus" repeat flex={1.4} onPress={media('vol_down')} />
+        <Key label="Volume up" icon="volume-plus" repeat flex={1.4} onPress={media('vol_up')} />
+        <Key label="Next track" icon="skip-next" onPress={media('next')} />
       </View>
       <View style={s.padRow}>
         <View style={s.side}>

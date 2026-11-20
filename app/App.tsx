@@ -65,7 +65,7 @@ function Remote({ boot, onForget }: { boot: Boot; onForget: () => void }) {
             {!typing ? (
               <View style={[s.controls, !usable && s.dim]} pointerEvents={usable ? 'auto' : 'none'}>
                 <Pager
-                  labels={['Main', 'Browser & more']}
+                  labels={['Remote', 'Browser & slides']}
                   pages={[<MainPage key="main" send={send} active={usable} />, <MorePage key="more" send={send} />]}
                 />
               </View>
