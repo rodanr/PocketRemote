@@ -23,6 +23,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/). The project is pre-rele
 - Pairing refusals now say why.
 
 ### Removed
+- Planned global pause hotkey (owner decision; tray and panel already pause instantly).
 - Redundant Left/Right click keys.
 
 ## [0.1.0] - 2026-11

@@ -18,3 +18,4 @@ Short records of choices that are not obvious from the code. Newest last. Format
 14. **Licenses allowed in `deny.toml`:** MIT, Apache-2.0, BSD-2/3, ISC, Unicode-3.0, Zlib, CC0, BSL-1.0, Apache-2.0 WITH LLVM-exception; MPL-2.0 only for `option-ext`. The project's own license is still undecided.
 15. **Manrope** (SIL OFL) on the phone and the Mac panel, bundled, nothing paid.
 16. **Nothing paid.** The Mac app is ad-hoc signed and not notarized; users approve it once. SignPath (free OSS signing for Windows) is an open question for the owner.
+17. **No pause hotkey** (owner, 2026-11-20). Pause is already one click in the tray and a switch in the Control Panel; skipping `global-hotkey` also avoids a dependency and OS key clashes. Recorded in `PLAN.md` section 3.10.

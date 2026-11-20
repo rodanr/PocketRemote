@@ -107,7 +107,7 @@ Rotating the host key (tray: *Reset pairing*) deletes both the host key and the 
 - Tray icon has distinct states: paused, waiting, **controlled** (a phone is connected).
 - A desktop notification when a phone connects or a pairing is attempted.
 - Tray item and Control Panel button **Disconnect** (closes the session, keeps the pairing) and **Revoke phone**.
-- Global hotkey `Ctrl+Alt+Shift+Esc` (Cmd on macOS; configurable) pauses the server immediately. Use the `global-hotkey` crate. Verify it does not clash on each OS.
+- ~~Global hotkey pauses the server.~~ **Owner decision 2026-11-20: dropped.** Pause is one click away in the tray menu and as the "Allow phone control" switch in the Control Panel, so a hotkey adds nothing. No `global-hotkey` dependency.
 
 ### 3.11 Code hygiene (MUST)
 
@@ -182,7 +182,7 @@ Fixtures: `protocol/fixtures/valid/*.json` and `protocol/fixtures/invalid/*.json
 
 ### 5.4 Control Panel contents
 
-Server switch · address + port · interface picker · network-trust list · **Pair phone** (QR + approve dialog + code) · paired phone (name, Revoke) · connected status + Disconnect · launch-at-login · pause hotkey · macOS Accessibility status.
+Server switch · address + port · interface picker · network-trust list · **Pair phone** (QR + approve dialog + code) · paired phone (name, Revoke) · connected status + Disconnect · launch-at-login · macOS Accessibility status. (Pause hotkey dropped, see §3.10.)
 
 Tray: status line · Open Control Panel · Pause/Resume · Disconnect · Pair phone · Quit.
 
@@ -303,7 +303,7 @@ Each task ends with all `CLAUDE.md` checks green. Open a PR per task (or small g
 
 ### Phase 2 — MVP remote (Windows, macOS, Linux X11; Android APK)
 - [ ] `InputBackend` + enigo + mock; `executor.rs` with `generic` profile.
-- [ ] Control Panel and tray (§5.4), tray states, notifications, pause hotkey (§3.10).
+- [ ] Control Panel and tray (§5.4), tray states, notifications (§3.10; the pause hotkey was dropped by the owner).
 - [ ] Native app: pairing scanner, trackpad, keyboard bar, media deck, D-pad, browser row.
 - [ ] Android release build with cleartext config; install-and-pair test on a real device.
 - Exit: pair, control, disconnect, revoke, re-pair all work on each desktop OS with the APK.
@@ -321,7 +321,7 @@ Each task ends with all `CLAUDE.md` checks green. Open a PR per task (or small g
 
 - Apply to SignPath's free OSS programme for Windows signing?
 - Default idle timeout: 30 min OK?
-- Pause hotkey default combination OK on the human's machines?
+- ~~Pause hotkey default combination~~ (dropped by the owner).
 
 ## Appendix A — Deferred: iPhone support (not in 1.0, do not build)
 

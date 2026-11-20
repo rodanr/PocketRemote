@@ -35,7 +35,7 @@ A remote for a dim room and one thumb. Near-black ground, one warm amber used sp
 - Approve dialog on the Mac shows "your phone" plus its IP and request time (the protocol does not carry a phone name yet).
 
 ## Mac Control Panel and tray
-- Same world, native feel, follows the Mac's light/dark setting. First run hero is the Accessibility permission, then the QR, then the full 5.4 list (server switch, address/port, interface picker, network trust, launch at login, pause hotkey, Accessibility status).
+- Same world, native feel, follows the Mac's light/dark setting. First run hero is the Accessibility permission, then the QR, then the full 5.4 list (server switch, address/port, interface picker, network trust, launch at login, Accessibility status; the pause hotkey was dropped by the owner).
 - QR: dark modules on a near-white tile with a proper quiet zone; countdown ring and amber dots go outside the tile.
 - Tray states at 16-18 pt: waiting = outline, paused = pause glyph, controlled = filled and amber (owner-approved; like macOS recording indicators). Disconnect and Revoke set apart; Revoke confirms.
 - Opening the panel during a session must not steal focus; show a "Phone connected" notification. Only the Approve step may take focus.
