@@ -7,7 +7,8 @@
 use crate::keystore::Keystore;
 use crate::net::{self, ConnGuard, Limiter, RateWindow};
 use crate::noise::{
-    self, HandshakeKind, MAX_TRANSPORT_FRAME, PairingOutcome, SessionResponder, Transport,
+    self, HandshakeKind, MAX_TRANSPORT_FRAME, PairingOutcome, PublicKey, SessionResponder,
+    Transport,
 };
 use crate::pairing::{self, Decision, PairingManager, PairingOffer};
 use crate::protocol::{ErrorCode, Message, Platform};
@@ -304,6 +305,7 @@ async fn accept_loop(sh: Arc<Shared>, listener: TcpListener) {
 /// would stay "in flight" and block pairing until the window expired, and would not count as a failure.
 struct AttemptGuard {
     sh: Arc<Shared>,
+    generation: u64,
     armed: bool,
 }
 
@@ -316,22 +318,26 @@ impl AttemptGuard {
 impl Drop for AttemptGuard {
     fn drop(&mut self) {
         if self.armed {
-            lock(&self.sh.pairing).attempt_failed(StdInstant::now());
+            lock(&self.sh.pairing).attempt_failed(self.generation, StdInstant::now());
         }
     }
 }
 
 enum Handshaken {
-    Session(Ws2, Transport),
-    Pairing(Ws2, PairingOutcome),
+    /// The `PublicKey` is the phone this session was authenticated as.
+    Session(Ws2, Transport, PublicKey),
+    /// The `u64` is the pairing window the attempt began in.
+    Pairing(Ws2, PairingOutcome, u64),
 }
 
 async fn handle_conn(sh: Arc<Shared>, stream: TcpStream, peer: SocketAddr, guard: ConnGuard) {
     let result = timeout(sh.cfg.handshake_timeout, handshake(&sh, stream)).await;
     drop(guard);
     match result {
-        Ok(Some(Handshaken::Session(ws, tr))) => run_session(sh, ws, tr).await,
-        Ok(Some(Handshaken::Pairing(ws, outcome))) => finish_pairing(sh, ws, outcome).await,
+        Ok(Some(Handshaken::Session(ws, tr, phone))) => run_session(sh, ws, tr, phone).await,
+        Ok(Some(Handshaken::Pairing(ws, outcome, generation))) => {
+            finish_pairing(sh, ws, outcome, generation).await
+        }
         _ => sh.limiter.record_failure(peer.ip(), StdInstant::now()),
     }
 }
@@ -425,18 +431,24 @@ async fn handshake(sh: &Arc<Shared>, stream: TcpStream) -> Option<Handshaken> {
             let (reply, transport) = responder.respond(body).ok()?;
             let frame = noise::encode_handshake_frame(HandshakeKind::Session, &reply);
             send_binary(&mut ws, frame).await.then_some(())?;
-            Some(Handshaken::Session(ws, transport))
+            Some(Handshaken::Session(ws, transport, phone))
         }
         HandshakeKind::Pairing => {
             if sh.paused.load(Ordering::SeqCst) {
                 return None;
             }
             let host = lock(&sh.keystore).host_keypair().ok()?;
-            let mut responder = lock(&sh.pairing)
-                .begin_attempt(&host.private, StdInstant::now())
-                .ok()?;
+            // Begin the attempt and note which pairing window it belongs to under one lock.
+            let (mut responder, generation) = {
+                let mut pairing = lock(&sh.pairing);
+                let responder = pairing
+                    .begin_attempt(&host.private, StdInstant::now())
+                    .ok()?;
+                (responder, pairing.generation())
+            };
             let mut guard = AttemptGuard {
                 sh: sh.clone(),
+                generation,
                 armed: true,
             };
             let _ = sh.events.send(ServerEvent::PairingAttempt);
@@ -455,7 +467,7 @@ async fn handshake(sh: &Arc<Shared>, stream: TcpStream) -> Option<Handshaken> {
             match outcome {
                 Some(o) => {
                     guard.disarm();
-                    Some(Handshaken::Pairing(ws, o))
+                    Some(Handshaken::Pairing(ws, o, generation))
                 }
                 None => None, // the guard records the failed attempt as it drops
             }
@@ -463,13 +475,18 @@ async fn handshake(sh: &Arc<Shared>, stream: TcpStream) -> Option<Handshaken> {
     }
 }
 
-async fn finish_pairing(sh: Arc<Shared>, mut ws: Ws2, outcome: PairingOutcome) {
+async fn finish_pairing(sh: Arc<Shared>, mut ws: Ws2, outcome: PairingOutcome, generation: u64) {
     let PairingOutcome {
         phone_public,
         code,
         mut transport,
     } = outcome;
-    let rx = lock(&sh.pairing).attempt_succeeded(phone_public, code.clone(), StdInstant::now());
+    let rx = lock(&sh.pairing).attempt_succeeded(
+        generation,
+        phone_public,
+        code.clone(),
+        StdInstant::now(),
+    );
     let Ok(rx) = rx else {
         let _ = ws.close(None).await;
         return;
@@ -513,14 +530,14 @@ async fn send_msg(ws: &mut Ws2, tr: &mut Transport, msg: &Message) -> bool {
     }
 }
 
-async fn run_session(sh: Arc<Shared>, mut ws: Ws2, mut tr: Transport) {
+async fn run_session(sh: Arc<Shared>, mut ws: Ws2, mut tr: Transport, phone: PublicKey) {
     let id = sh.next_id.fetch_add(1, Ordering::SeqCst);
     let (ctl_tx, mut ctl_rx) = mpsc::unbounded_channel();
     // The session counts as live, and replaces the old one, only after the phone proves it holds the
     // session keys by sending a valid encrypted message (see `activate_session`). The phone's first
     // KK message alone can be replayed by someone who recorded it, so it must not end a real session.
     let mut pending = Some(ctl_tx);
-    let end_code = session_loop(&sh, id, &mut ws, &mut tr, &mut ctl_rx, &mut pending).await;
+    let end_code = session_loop(&sh, id, &phone, &mut ws, &mut tr, &mut ctl_rx, &mut pending).await;
     if let Some(code) = end_code {
         let _ = send_msg(&mut ws, &mut tr, &Message::Error { code }).await;
     }
@@ -535,17 +552,31 @@ async fn run_session(sh: Arc<Shared>, mut ws: Ws2, mut tr: Transport) {
 }
 
 /// Make this the live session: a previous one is told it was `replaced`, and the UI is told a phone connected.
-fn activate_session(sh: &Shared, id: u64, ctl: mpsc::UnboundedSender<Control>) {
-    if let Some(old) = lock(&sh.active).replace(ActiveSession { id, ctl }) {
+/// Returns false if `phone` is no longer the paired phone (revoked or replaced since the handshake).
+/// The check happens while holding the live-session lock, and Revoke deletes the key before it closes the
+/// live session, so a session can never slip in alive after a revoke.
+fn activate_session(
+    sh: &Shared,
+    id: u64,
+    phone: &PublicKey,
+    ctl: mpsc::UnboundedSender<Control>,
+) -> bool {
+    let mut active = lock(&sh.active);
+    if lock(&sh.keystore).paired_phone().ok().flatten().as_ref() != Some(phone) {
+        return false;
+    }
+    if let Some(old) = active.replace(ActiveSession { id, ctl }) {
         let _ = old.ctl.send(Control::Close(Some(ErrorCode::Replaced)));
     }
     let _ = sh.events.send(ServerEvent::PhoneConnected);
+    true
 }
 
 /// Returns the error code to send before closing, if any.
 async fn session_loop(
     sh: &Arc<Shared>,
     id: u64,
+    phone: &PublicKey,
     ws: &mut Ws2,
     tr: &mut Transport,
     ctl: &mut mpsc::UnboundedReceiver<Control>,
@@ -598,7 +629,9 @@ async fn session_loop(
                     if sh.paused.load(Ordering::SeqCst) {
                         return Some(ErrorCode::Paused);
                     }
-                    activate_session(sh, id, tx);
+                    if !activate_session(sh, id, phone, tx) {
+                        return Some(ErrorCode::Revoked);
+                    }
                 }
                 match &msg {
                     Message::Ping { t } => {
@@ -1304,6 +1337,29 @@ mod tests {
                 .await
                 .is_err(),
             "no false 'phone connected' alert"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_session_started_before_a_revoke_cannot_go_live_after_it() {
+        let mut h = harness().await;
+        // The phone finishes the handshake, then the owner removes it before its first message.
+        let mut p = try_session(h.addr, &h.phone, &h.host_pub).await.unwrap();
+        assert!(matches!(p.recv().await, Some(Message::Status { .. })));
+        h.server.revoke_phone().unwrap();
+        p.send(&Message::Ping { t: 9 }).await;
+        assert_eq!(
+            p.expect_closed().await,
+            vec![Message::Error {
+                code: ErrorCode::Revoked
+            }],
+            "no pong: the session never went live"
+        );
+        assert!(
+            timeout(Duration::from_millis(150), h.events.recv())
+                .await
+                .is_err(),
+            "and no 'phone connected' alert"
         );
     }
 

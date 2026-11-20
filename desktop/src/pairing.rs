@@ -64,6 +64,9 @@ enum State {
 
 pub struct PairingManager {
     state: State,
+    /// Counts pairing windows. An attempt that started in an older window must not be able to finish
+    /// (or fail) inside a newer one, so attempts carry the generation they began in.
+    generation: u64,
 }
 
 impl Default for PairingManager {
@@ -76,7 +79,13 @@ impl PairingManager {
     pub fn new() -> Self {
         Self {
             state: State::Closed,
+            generation: 0,
         }
+    }
+
+    /// The current pairing window's generation; pass it back to `attempt_failed` / `attempt_succeeded`.
+    pub fn generation(&self) -> u64 {
+        self.generation
     }
 
     /// Open a pairing window with a fresh token. Any previous window is burned.
@@ -87,6 +96,7 @@ impl PairingManager {
         now: Instant,
     ) -> Result<PairingOffer, Refused> {
         self.close(Decision::Rejected);
+        self.generation += 1;
         let mut token = Zeroizing::new([0u8; 32]);
         getrandom::fill(token.as_mut_slice()).map_err(|_| Refused::Internal)?;
         let uri = format!(
@@ -145,7 +155,10 @@ impl PairingManager {
     }
 
     /// The handshake failed. Three failures in one window burn the token and close it.
-    pub fn attempt_failed(&mut self, now: Instant) {
+    pub fn attempt_failed(&mut self, generation: u64, now: Instant) {
+        if generation != self.generation {
+            return; // a stale attempt from an older window
+        }
         self.tick(now);
         if let State::Open {
             failures,
@@ -164,10 +177,14 @@ impl PairingManager {
     /// The handshake succeeded: the token is burned now and the user must approve.
     pub fn attempt_succeeded(
         &mut self,
+        generation: u64,
         phone_public: PublicKey,
         code: String,
         now: Instant,
     ) -> Result<oneshot::Receiver<Decision>, Refused> {
+        if generation != self.generation {
+            return Err(Refused::NoWindow); // started in an older window
+        }
         self.tick(now);
         match self.state {
             State::Open {
@@ -299,7 +316,7 @@ mod tests {
         let phone_code = pairing_code(init.get_handshake_hash());
         let out = resp.finish().unwrap();
         assert_eq!(out.code, phone_code);
-        let rx = mgr.attempt_succeeded(out.phone_public, out.code, now)?;
+        let rx = mgr.attempt_succeeded(mgr.generation(), out.phone_public, out.code, now)?;
         Ok((phone.public, phone_code, rx))
     }
 
@@ -356,6 +373,31 @@ mod tests {
     }
 
     #[test]
+    fn an_attempt_from_an_older_window_cannot_finish_or_fail_in_a_new_one() {
+        let host = generate_static_keypair().unwrap();
+        let mut mgr = PairingManager::new();
+        let t0 = Instant::now();
+        mgr.open(&host.public, addr(), t0).unwrap();
+        let _ = mgr.begin_attempt(&host.private, t0).unwrap();
+        let old = mgr.generation();
+        // The user clicks Pair again: a new window opens while the old attempt is still running.
+        mgr.open(&host.public, addr(), t0).unwrap();
+        let _ = mgr.begin_attempt(&host.private, t0).unwrap(); // the new window's own attempt
+        assert!(matches!(
+            mgr.attempt_succeeded(old, [7; 32], "123456".into(), t0),
+            Err(Refused::NoWindow)
+        ));
+        mgr.attempt_failed(old, t0); // ignored: must not count against the new window
+        assert!(
+            matches!(
+                mgr.begin_attempt(&host.private, t0),
+                Err(Refused::AttemptInProgress)
+            ),
+            "the new window's attempt is still the one in flight"
+        );
+    }
+
+    #[test]
     fn three_failed_attempts_close_the_window() {
         let host = generate_static_keypair().unwrap();
         let mut mgr = PairingManager::new();
@@ -363,11 +405,11 @@ mod tests {
         mgr.open(&host.public, addr(), t0).unwrap();
         for _ in 0..2 {
             let _ = mgr.begin_attempt(&host.private, t0).unwrap();
-            mgr.attempt_failed(t0);
+            mgr.attempt_failed(mgr.generation(), t0);
             assert!(mgr.is_open(t0));
         }
         let _ = mgr.begin_attempt(&host.private, t0).unwrap();
-        mgr.attempt_failed(t0);
+        mgr.attempt_failed(mgr.generation(), t0);
         assert!(!mgr.is_open(t0));
     }
 
@@ -475,7 +517,7 @@ mod tests {
         init.read_message(&m2, &mut p).unwrap();
         let n = init.write_message(&[], &mut buf).unwrap();
         assert!(resp.read_msg3(&buf[..n]).is_err());
-        mgr.attempt_failed(t0);
+        mgr.attempt_failed(mgr.generation(), t0);
         assert!(mgr.is_open(t0), "one failure does not close the window");
     }
 

@@ -185,15 +185,23 @@ impl RateWindow {
     }
 }
 
-/// Identifies a network by subnet and, if obtainable, gateway IP.
+/// Identifies a network by subnet, gateway IP and, where the system lets us read it, the gateway's
+/// hardware address. Subnet plus gateway IP alone (such as 192.168.1.0/24 via 192.168.1.1) matches
+/// countless home and public networks; the hardware address tells them apart.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct NetworkId(String);
 
 impl NetworkId {
     pub fn new(subnet: &str, gateway: Option<IpAddr>) -> Self {
-        match gateway {
-            Some(g) => Self(format!("{subnet} via {g}")),
-            None => Self(format!("{subnet} via unknown")),
+        Self::with_mac(subnet, gateway, None)
+    }
+
+    /// `mac` is the gateway's hardware address in the form `aa:bb:cc:dd:ee:ff` (see `gateway_mac`).
+    pub fn with_mac(subnet: &str, gateway: Option<IpAddr>, mac: Option<&str>) -> Self {
+        match (gateway, mac) {
+            (Some(g), Some(m)) => Self(format!("{subnet} via {g} ({m})")),
+            (Some(g), None) => Self(format!("{subnet} via {g}")),
+            (None, _) => Self(format!("{subnet} via unknown")),
         }
     }
 
@@ -211,7 +219,13 @@ impl NetworkId {
                 if_addrs::IfAddr::V6(a) if IpAddr::V6(a.ip) == ip => Some(a.prefixlen),
                 _ => None,
             })?;
-        Some(Self::new(&subnet_string(ip, prefix), default_gateway()))
+        let gateway = default_gateway();
+        let mac = gateway.and_then(gateway_mac);
+        Some(Self::with_mac(
+            &subnet_string(ip, prefix),
+            gateway,
+            mac.as_deref(),
+        ))
     }
 }
 
@@ -256,6 +270,100 @@ pub fn default_gateway() -> Option<IpAddr> {
     }
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     {
+        None
+    }
+}
+
+/// Normalises a hardware address to six lower-case, zero-padded octets (`a:b:c:d:e:f` and
+/// `AA-BB-...` both become `aa:bb:cc:dd:ee:ff`). Returns None for anything else, and for the
+/// all-zero or broadcast placeholders that mean "not resolved".
+pub(crate) fn normalize_mac(raw: &str) -> Option<String> {
+    let parts: Vec<&str> = raw.split([':', '-']).collect();
+    if parts.len() != 6 {
+        return None;
+    }
+    let mut octets = [0u8; 6];
+    for (o, p) in octets.iter_mut().zip(&parts) {
+        if p.is_empty() || p.len() > 2 {
+            return None;
+        }
+        *o = u8::from_str_radix(p, 16).ok()?;
+    }
+    if octets == [0; 6] || octets == [0xff; 6] {
+        return None;
+    }
+    Some(
+        octets
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<Vec<_>>()
+            .join(":"),
+    )
+}
+
+/// macOS `arp -n <ip>`: `? (192.168.1.1) at a4:2b:b0:1:2:3 on en0 ifscope [ethernet]`.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))] // tested everywhere, used on macOS
+pub(crate) fn parse_arp_output(text: &str) -> Option<String> {
+    let after = text.split(" at ").nth(1)?;
+    normalize_mac(after.split_whitespace().next()?)
+}
+
+/// Linux `/proc/net/arp`: `IP address  HW type  Flags  HW address  Mask  Device`.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))] // tested everywhere, used on Linux
+pub(crate) fn parse_proc_net_arp(table: &str, gateway: IpAddr) -> Option<String> {
+    let want = gateway.to_string();
+    table.lines().skip(1).find_map(|l| {
+        let f: Vec<&str> = l.split_whitespace().collect();
+        if f.first() == Some(&want.as_str()) {
+            normalize_mac(f.get(3)?)
+        } else {
+            None
+        }
+    })
+}
+
+/// Reads the system's address table (ARP) once.
+#[cfg(target_os = "macos")]
+fn read_gateway_mac(gateway: IpAddr) -> Option<String> {
+    let out = std::process::Command::new("/usr/sbin/arp")
+        .args(["-n", &gateway.to_string()])
+        .output()
+        .ok()?;
+    parse_arp_output(&String::from_utf8_lossy(&out.stdout))
+}
+
+#[cfg(target_os = "linux")]
+fn read_gateway_mac(gateway: IpAddr) -> Option<String> {
+    let table = std::fs::read_to_string("/proc/net/arp").ok()?;
+    parse_proc_net_arp(&table, gateway)
+}
+
+/// Best-effort hardware address of the default gateway (macOS and Linux). None where the system
+/// does not tell us (for example Windows for now): the identity then falls back to subnet plus
+/// gateway IP.
+///
+/// The system forgets idle gateway entries after a few minutes, so a plain lookup is flaky and would
+/// make a known network look new. We first send one harmless one-byte datagram to the gateway's
+/// "discard" port, which makes the system resolve it again, then read the table (a few short retries).
+pub fn gateway_mac(gateway: IpAddr) -> Option<String> {
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    {
+        if let IpAddr::V4(v4) = gateway
+            && let Ok(socket) = std::net::UdpSocket::bind(("0.0.0.0", 0))
+        {
+            let _ = socket.send_to(&[0u8], (v4, 9));
+        }
+        for _ in 0..10 {
+            if let Some(mac) = read_gateway_mac(gateway) {
+                return Some(mac);
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        None
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    {
+        let _ = gateway;
         None
     }
 }
@@ -324,6 +432,69 @@ impl TrustStore {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn mac_addresses_are_normalised_and_placeholders_rejected() {
+        assert_eq!(
+            super::normalize_mac("A4:2B:b0:1:2:3").as_deref(),
+            Some("a4:2b:b0:01:02:03")
+        );
+        assert_eq!(
+            super::normalize_mac("a4-2b-b0-01-02-03").as_deref(),
+            Some("a4:2b:b0:01:02:03")
+        );
+        for bad in [
+            "(incomplete)",
+            "00:00:00:00:00:00",
+            "ff:ff:ff:ff:ff:ff",
+            "a4:2b:b0:01:02",
+            "zz:2b:b0:01:02:03",
+            "",
+        ] {
+            assert_eq!(super::normalize_mac(bad), None, "{bad}");
+        }
+    }
+
+    #[test]
+    fn macos_arp_and_linux_proc_output_are_parsed() {
+        let mac = "? (192.168.1.1) at a4:2b:b0:1:2:3 on en0 ifscope [ethernet]\n";
+        assert_eq!(
+            super::parse_arp_output(mac).as_deref(),
+            Some("a4:2b:b0:01:02:03")
+        );
+        assert_eq!(
+            super::parse_arp_output("? (192.168.1.1) at (incomplete) on en0 ifscope [ethernet]"),
+            None
+        );
+        let linux = "IP address       HW type     Flags       HW address            Mask     Device\n\
+                     192.168.1.7      0x1         0x2         11:22:33:44:55:66     *        wlan0\n\
+                     192.168.1.1      0x1         0x2         A4:2B:B0:01:02:03     *        wlan0\n";
+        assert_eq!(
+            super::parse_proc_net_arp(linux, "192.168.1.1".parse().unwrap()).as_deref(),
+            Some("a4:2b:b0:01:02:03")
+        );
+        assert_eq!(
+            super::parse_proc_net_arp(linux, "10.0.0.1".parse().unwrap()),
+            None
+        );
+    }
+
+    #[test]
+    fn same_subnet_and_gateway_ip_on_different_routers_are_different_networks() {
+        let ip: std::net::IpAddr = "192.168.1.1".parse().unwrap();
+        let home =
+            super::NetworkId::with_mac("192.168.1.0/24", Some(ip), Some("a4:2b:b0:01:02:03"));
+        let cafe =
+            super::NetworkId::with_mac("192.168.1.0/24", Some(ip), Some("11:22:33:44:55:66"));
+        assert_ne!(home, cafe);
+        let mut trust = super::TrustStore::in_memory();
+        trust.trust(home.clone()).unwrap();
+        assert!(trust.is_trusted(&home));
+        assert!(
+            !trust.is_trusted(&cafe),
+            "a look-alike network with another router must not be trusted"
+        );
+    }
+
     use super::*;
 
     fn ip(s: &str) -> IpAddr {

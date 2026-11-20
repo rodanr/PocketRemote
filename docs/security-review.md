@@ -24,23 +24,25 @@ Partly met or not met (to record as decisions or follow-ups):
 | MUST | Status | Note |
 |---|---|---|
 | Bind the user-selected interface | Not met | Binds the default-route interface only. The interface picker was not built. |
-| Network trust by subnet plus gateway MAC | Partly | Uses subnet plus gateway IP, never the MAC; on Windows the gateway is "unknown" (finding F6). |
+| Network trust by subnet plus gateway MAC | Met on macOS and Linux | Gateway MAC added (finding F6, fixed); on Windows the gateway is still "unknown". |
 | Notification on a pairing attempt | Not met | Only "Phone connected" notifies. |
-| 3 failures burn the token | Partly | Timeouts are not counted (finding F2). |
+| 3 failures burn the token | Met | Timeouts now count (finding F2, fixed). |
 | Lock-screen guard | Partly | Relies on macOS behaviour; no code. |
 | Keychain / 0600 fallback | Partly | No file fallback on Windows (documented). |
 | QR scheme name | Doc drift | The scheme is `pocketremote`; `PLAN.md` section 3.4 still says `couchremote`. |
 
 ## Fixes applied after the review (for the owner's review)
 
-Only `desktop/src/server.rs` changed among the security-sensitive files (plus tests); `pairing.rs`, `noise.rs`, `keystore.rs`, `net.rs`, `app/src/noise/` and `app/src/session.ts` are untouched. Each fix has a test that fails if the bug is put back (checked by reintroducing it).
+Changed among the security-sensitive files: `desktop/src/server.rs`, `desktop/src/pairing.rs` and `desktop/src/net.rs` (plus tests). Untouched: `noise.rs`, `keystore.rs`, `app/src/noise/` and `app/src/session.ts`. Each fix has a test that fails if the bug is put back (checked by reintroducing it).
 
 | Finding | Status | What changed |
 |---|---|---|
 | F1 replayed first message | **Fixed** | A session now becomes the live session (and replaces the old one, and reports "connected") only after the phone sends its first valid encrypted message (`activate_session`, called from `session_loop`). A pause that happened since the handshake still applies. The phone sends a ping right after the handshake (`app/src/connection.ts`, not a flagged file). Test: `a_replayed_first_message_does_not_end_the_real_session`. |
 | F2 pairing window jam | **Fixed** | A small drop guard (`AttemptGuard`) records and releases a pairing attempt if its future is dropped, for example when the handshake timeout fires. It also now counts as one of the 3 failures. Test: `a_silent_pairing_attempt_does_not_jam_the_window`. |
 | F5 revoke can fail without disconnecting | **Fixed** | `revoke_phone` and `reset_pairing` now close the active session even if the key store call fails, and still return the error. Test: `revoke_closes_the_session_even_if_the_key_store_fails`. |
-| F3, F4, F6 | Open (low) | Accepted for 1.0; tracked here. |
+| F3 stale pairing attempt | **Fixed** | Each pairing window has a generation number (`pairing.rs`); an attempt can only finish or fail inside the window it began in. Test: `an_attempt_from_an_older_window_cannot_finish_or_fail_in_a_new_one`. |
+| F4 revoke/connect race | **Fixed** | When a session goes live, the server re-checks under the live-session lock that its phone is still the paired phone (`activate_session`). Revoke deletes the key before closing the live session, so a session can no longer slip in alive after a revoke. Lock order checked (no path holds the key store while waiting for the session lock). Test: `a_session_started_before_a_revoke_cannot_go_live_after_it`. |
+| F6 weak network identity | **Fixed on macOS and Linux** | The network identity now includes the gateway's hardware address (`net.rs`: `NetworkId::with_mac`, `gateway_mac`), for example `192.168.1.0/24 via 192.168.1.1 (a4:2b:b0:01:02:03)`. The system forgets idle router entries, so the lookup first sends one harmless datagram to the router to refresh it, then reads the table. Parsing is unit-tested on every platform. Windows still has no gateway lookup (documented). Networks allowed before this change need to be allowed once more. The live lookup could not be exercised in the review sandbox (macOS blocks local-network access there); check that your home network is recognised on the next start. |
 
 ## Findings (as reported)
 
@@ -64,4 +66,4 @@ Constant-time behaviour of the `@noble` libraries under Hermes; whether `x25519.
 
 ## Sign-off advice
 
-The cryptographic core looks sound: both sides use the specified Noise patterns, test vectors exist for both, the phone pins the host key, nothing is stored without Approve and the limits match the spec. Nothing found lets an attacker control the computer. The owner can reasonably sign off. F1, F2 and F5 are now fixed and tested; F3, F4 and F6 are low and accepted for 1.0.
+The cryptographic core looks sound: both sides use the specified Noise patterns, test vectors exist for both, the phone pins the host key, nothing is stored without Approve and the limits match the spec. Nothing found lets an attacker control the computer. The owner can reasonably sign off. F1 to F6 are all fixed and tested (F6 on macOS and Linux).

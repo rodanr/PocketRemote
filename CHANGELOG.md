@@ -25,7 +25,7 @@ First release: Android phone app and macOS host. Ad-hoc signed, not notarized (s
 - Phone and panel wording says "computer" instead of "Mac".
 
 ### Fixed
-- Security review follow-ups in `server.rs`: a replayed first handshake message can no longer end the real session or fake a "connected" alert (F1); a silent pairing attempt can no longer jam the pairing window (F2); Remove phone always disconnects first (F5). See `docs/security-review.md`.
+- Security review follow-ups in `server.rs`: a replayed first handshake message can no longer end the real session or fake a "connected" alert (F1); a silent pairing attempt can no longer jam the pairing window (F2); a stale pairing attempt cannot finish in a newer window (F3); a session cannot go live after its phone was revoked (F4); Remove phone always disconnects first (F5); the network identity now includes the router's hardware address on macOS and Linux (F6; networks allowed before need to be allowed once more). See `docs/security-review.md`.
 - Pairing QR was drawn inverted (light on dark) in dark mode, which some scanners cannot read; it is now always black on white.
 - Endless Keychain prompts (the host now reads each secret once).
 - Feeling locked out after a stale pairing: two failed handshakes now offer "Scan again"; pressing Reconnect no longer hides it; the dialog no longer flashes during retries.
