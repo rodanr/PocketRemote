@@ -50,7 +50,7 @@ The terminal host in `--dry-run` never moves the pointer. Use the dev-only paste
 scripts/build-macos.sh      # dist/PocketRemote.app (menu-bar app, ad-hoc signed) and dist/PocketRemote-<version>.dmg
 ```
 
-Android release APK: `cd app && npx expo prebuild --platform android && cd android && ./gradlew assembleRelease` (the generated `android/` folder is git-ignored; Expo Go development is unaffected). Signing and distribution notes are in [INSTALL.md](INSTALL.md).
+Android release APK: `scripts/build-android.sh` writes `dist/PocketRemote-<version>.apk` (about 4 minutes the first time; the generated `app/android/` folder is git-ignored and Expo Go development is unaffected). It installs and launches standalone; it is signed with Expo's default debug key, so it is for sideloading, not the Play Store. Signing and distribution notes are in [INSTALL.md](INSTALL.md).
 
 ## Regenerating assets
 

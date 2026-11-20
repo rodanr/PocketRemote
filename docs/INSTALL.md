@@ -17,7 +17,7 @@ Turn on **Open at login** in the Control Panel if you want it to start with your
 
 ## Android phone
 
-Release APK (sideload): build with the command in [DEVELOPMENT.md](DEVELOPMENT.md), copy `app/android/app/build/outputs/apk/release/app-release.apk` to the phone, and allow installs from your file manager. Or, while developing, open the app in **Expo Go**.
+Release APK (sideload): run `scripts/build-android.sh`, copy `dist/PocketRemote-<version>.apk` to the phone (or `adb install -r` it), and allow installs from your file manager. Or, while developing, open the app in **Expo Go**.
 
 ## Pair
 
