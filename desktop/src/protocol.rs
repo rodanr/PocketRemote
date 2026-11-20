@@ -400,6 +400,17 @@ mod tests {
         assert!(ping.is_phone_to_host() && ping.is_host_to_phone());
     }
 
+    fn screaming_snake(name: &str) -> String {
+        let mut out = String::new();
+        for (i, c) in name.chars().enumerate() {
+            if c.is_uppercase() && i > 0 {
+                out.push('_');
+            }
+            out.push(c.to_ascii_uppercase());
+        }
+        out
+    }
+
     fn generate_typescript() -> String {
         let cfg = Config::new();
         let decls = [
@@ -435,6 +446,22 @@ mod tests {
             out.push_str("export ");
             out.push_str(&d);
             out.push_str("\n\n");
+            // Runtime value lists for the plain string enums, taken from the type itself so the
+            // two can never drift apart. The app's validator uses them.
+            let name = d.trim_start_matches("type ").split(' ').next().unwrap();
+            if name != "Message" {
+                let values: Vec<String> = d
+                    .split('"')
+                    .skip(1)
+                    .step_by(2)
+                    .map(|v| format!("\"{v}\""))
+                    .collect();
+                out.push_str(&format!(
+                    "export const {}_VALUES = [{}] as const;\n\n",
+                    screaming_snake(name),
+                    values.join(", ")
+                ));
+            }
         }
         out.trim_end().to_owned() + "\n"
     }
