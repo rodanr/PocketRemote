@@ -10,6 +10,8 @@ export interface KeyProps {
   /** Spoken by TalkBack: say the action in words ("Previous tab"). */
   label: string;
   icon?: IconName;
+  /** Put the icon after the text (Forward →, Tab ›). */
+  iconAfter?: boolean;
   /** Short visible text, used with or instead of an icon. */
   text?: string;
   onPress: () => void;
@@ -30,7 +32,7 @@ export interface KeyProps {
 const REPEAT_DELAY = 350;
 const REPEAT_EVERY = 110;
 
-export function Key({ label, icon, text, onPress, lead, repeat, holdMs, flex = 1, height = 52, round, danger, style }: KeyProps) {
+export function Key({ label, icon, iconAfter, text, onPress, lead, repeat, holdMs, flex = 1, height = 52, round, danger, style }: KeyProps) {
   const timer = useRef<ReturnType<typeof setTimeout> | ReturnType<typeof setInterval> | null>(null);
   const stop = () => {
     if (timer.current !== null) {
@@ -45,6 +47,8 @@ export function Key({ label, icon, text, onPress, lead, repeat, holdMs, flex = 1
     tick();
     onPress();
   };
+
+  const glyph = icon ? <MaterialCommunityIcons name={icon} size={24} color={lead ? color.onAmber : danger ? color.danger : color.text} /> : null;
 
   return (
     <Pressable
@@ -73,19 +77,29 @@ export function Key({ label, icon, text, onPress, lead, repeat, holdMs, flex = 1
         style,
       ]}
     >
-      {icon ? <MaterialCommunityIcons name={icon} size={24} color={lead ? color.onAmber : danger ? color.danger : color.text} /> : null}
-      {text ? <Text style={[s.text, lead && { color: color.onAmber }]}>{text}</Text> : null}
+      {icon && !iconAfter ? glyph : null}
+      {text ? (
+        <Text
+          style={[s.text, lead && { color: color.onAmber }, danger && { color: color.danger }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.75}
+        >
+          {text}
+        </Text>
+      ) : null}
+      {icon && iconAfter ? glyph : null}
     </Pressable>
   );
 }
 
 const s = StyleSheet.create({
-  base: { alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
+  base: { alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, paddingHorizontal: 6 },
   // Filled keys carry no outline: fill plus outline says 'shape' twice and looks fussy.
   normal: { backgroundColor: color.surface },
   danger: { borderWidth: StyleSheet.hairlineWidth * 2, borderColor: 'rgba(255,107,90,0.6)', backgroundColor: 'transparent' },
   pressed: { backgroundColor: color.surfacePressed },
   lead: { backgroundColor: color.amber },
   leadPressed: { backgroundColor: '#e89f3e' },
-  text: { ...t.body, fontSize: 14 },
+  text: { ...t.body, fontSize: 14, flexShrink: 1 },
 });

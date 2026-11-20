@@ -46,3 +46,8 @@ Status-dot glow, idle animation of the lights, amber D-pad glyphs, always-amber 
 ## Owner decisions recorded
 - Media deck stays in the spec's order (top), with the three-finger tap shortcut.
 - Controlled tray icon is amber.
+
+## Addendum (2026-11-20): owner feedback from the first real-phone test
+- Browser keys now carry words (Back, Forward, Reload, Close tab, Tab, Tab) under a small BROWSER title, so they cannot be confused with the D-pad arrows. Labels shrink to fit at large system font sizes.
+- Page 2 (swipe left; dots show the page): SLIDES (Previous / Next slide = Page Up / Page Down), TRACKS (Previous / Next track), CLICKS (Left / Right click). Settings lists the trackpad gestures.
+- Rule from the owner for adding anything: only simple, reliable actions. Deliberately NOT added: three-finger swipe shortcuts (OnePlus system gestures, accidental triggers), Mission Control (needs a new protocol command and depends on a macOS shortcut that may be off; revisit after a 30 s on-device check), a mouse Hold toggle (can desync), slide First/Last (inconsistent across apps), a Stop key (not available in enigo).

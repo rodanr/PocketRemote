@@ -12,6 +12,15 @@ interface Props {
   onForget: () => void;
 }
 
+const GESTURES: [string, string][] = [
+  ['One finger', 'Move the pointer'],
+  ['Tap', 'Left click'],
+  ['Two-finger tap', 'Right click'],
+  ['Press and hold, then drag', 'Drag'],
+  ['Two fingers', 'Scroll'],
+  ['Three-finger tap', 'Play / Pause'],
+];
+
 function Stepper({ label, value, display, onDec, onInc }: { label: string; value: number; display: string; onDec: () => void; onInc: () => void }) {
   return (
     <View style={s.row}>
@@ -44,6 +53,15 @@ export function SettingsSheet({ visible, settings, hostName, onChange, onClose, 
           <Text style={t.body}>Natural scroll</Text>
           <Switch value={settings.naturalScroll} onValueChange={(v) => onChange({ ...settings, naturalScroll: v })} trackColor={{ true: color.amber, false: color.surface }} thumbColor={color.text} accessibilityLabel="Natural scroll" />
         </View>
+        <Text style={[t.label, { marginTop: space.m, marginBottom: space.s }]} accessibilityRole="header">
+          TRACKPAD GESTURES
+        </Text>
+        {GESTURES.map(([how, what]) => (
+          <View key={how} style={s.gesture} accessible accessibilityLabel={`${how}: ${what}`}>
+            <Text style={s.how}>{how}</Text>
+            <Text style={s.what}>{what}</Text>
+          </View>
+        ))}
         <Pressable accessibilityRole="button" onPress={onForget} style={s.forget}>
           <Text style={{ color: color.danger, fontSize: 15 }}>Forget {hostName} and pair again</Text>
         </Pressable>
@@ -60,5 +78,8 @@ const s = StyleSheet.create({
   stepper: { flexDirection: 'row', alignItems: 'center' },
   step: { width: TARGET, height: TARGET, borderRadius: TARGET / 2, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth * 2, borderColor: color.outline },
   stepText: { color: color.text, fontSize: 22 },
+  gesture: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
+  how: { ...t.body, fontSize: 14, color: color.text },
+  what: { ...t.body, fontSize: 14, color: color.textMuted },
   forget: { minHeight: TARGET, justifyContent: 'center', marginTop: space.m },
 });

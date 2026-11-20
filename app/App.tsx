@@ -13,6 +13,8 @@ import { BrowserBlock } from './src/ui/BrowserRow';
 import { Dpad } from './src/ui/Dpad';
 import { KeyboardBar } from './src/ui/KeyboardBar';
 import { MediaDeck } from './src/ui/MediaDeck';
+import { MorePage } from './src/ui/MorePage';
+import { Pager } from './src/ui/Pager';
 import { PairingScreen } from './src/ui/PairingScreen';
 import { SettingsSheet } from './src/ui/SettingsSheet';
 import { StatusHeader } from './src/ui/StatusHeader';
@@ -64,11 +66,18 @@ function Remote({ boot, onForget }: { boot: Boot; onForget: () => void }) {
             <KeyboardBar send={send} onTyping={setTyping} />
             {!typing ? (
               <View style={[s.controls, !usable && s.dim]} pointerEvents={usable ? 'auto' : 'none'}>
-                <MediaDeck send={send} active={usable} />
-                <View style={s.row}>
-                  <Dpad send={send} />
-                  <BrowserBlock send={send} />
-                </View>
+                <Pager
+                  pages={[
+                    <View key="main" style={s.page}>
+                      <MediaDeck send={send} active={usable} />
+                      <View style={s.row}>
+                        <Dpad send={send} />
+                        <BrowserBlock send={send} />
+                      </View>
+                    </View>,
+                    <MorePage key="more" send={send} />,
+                  ]}
+                />
               </View>
             ) : null}
             <Trackpad send={send} settings={settings} dim={!usable} />
@@ -125,6 +134,7 @@ const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.ground },
   body: { flex: 1, paddingHorizontal: space.m, paddingTop: space.s, paddingBottom: space.m, gap: space.s },
   controls: { gap: space.s },
+  page: { gap: space.s },
   dim: { opacity: 0.5 },
-  row: { flexDirection: 'row', gap: space.m, alignItems: 'stretch' },
+  row: { flexDirection: 'row', gap: space.m, alignItems: 'flex-end' },
 });

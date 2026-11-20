@@ -3,6 +3,8 @@
 //!
 //! Flags: `--file-keys` keep keys in a 0600 file instead of the OS keychain (development).
 //!        `--print-uri` also print the pairing link as text (development only; it holds the token).
+//!        `--dry-run` use a recording backend instead of real input: pairs and connects normally but
+//!        never touches the mouse or keyboard (for demos and UI testing).
 //! Never prints keys, tokens, typed text or decrypted payloads.
 #![forbid(unsafe_code)]
 
@@ -75,10 +77,45 @@ async fn ask_yes_no(lines: &mut tokio::io::Lines<BufReader<tokio::io::Stdin>>, q
     matches!(lines.next_line().await, Ok(Some(l)) if l.trim().eq_ignore_ascii_case("y"))
 }
 
+/// The input backend: a recording mock for `--dry-run`, otherwise the real one for this OS.
+fn make_backend(dry_run: bool) -> Box<dyn pocketremote::input::InputBackend> {
+    if dry_run {
+        println!("DRY RUN: input is recorded, not performed.");
+        return Box::new(pocketremote::input::mock::MockBackend::new());
+    }
+    real_backend()
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn real_backend() -> Box<dyn pocketremote::input::InputBackend> {
+    match pocketremote::input::enigo_backend::EnigoBackend::new() {
+        Ok(b) => Box::new(b),
+        Err(pocketremote::input::InputError::NoPermission) => {
+            eprintln!(
+                "Input permission missing. macOS: System Settings > Privacy & Security > Accessibility, enable this terminal, then restart it."
+            );
+            std::process::exit(2);
+        }
+        Err(e) => {
+            eprintln!("Input backend failed: {e}");
+            std::process::exit(1);
+        }
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn real_backend() -> Box<dyn pocketremote::input::InputBackend> {
+    eprintln!(
+        "No input backend for this OS yet (Linux comes in a later phase). Use --dry-run to try the rest."
+    );
+    std::process::exit(1);
+}
+
 #[tokio::main]
 async fn main() {
     let file_keys = std::env::args().any(|a| a == "--file-keys");
     let print_uri = std::env::args().any(|a| a == "--print-uri");
+    let dry_run = std::env::args().any(|a| a == "--dry-run");
     let mut lines = BufReader::new(tokio::io::stdin()).lines();
 
     let Some(ip) = net::default_route_ip().filter(|ip| net::ip_allowed(*ip)) else {
@@ -126,28 +163,7 @@ async fn main() {
         }
     }
 
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
-    let backend = match pocketremote::input::enigo_backend::EnigoBackend::new() {
-        Ok(b) => Box::new(b) as Box<dyn pocketremote::input::InputBackend>,
-        Err(pocketremote::input::InputError::NoPermission) => {
-            eprintln!(
-                "Input permission missing. macOS: System Settings > Privacy & Security > Accessibility, enable this terminal, then restart it."
-            );
-            std::process::exit(2);
-        }
-        Err(e) => {
-            eprintln!("Input backend failed: {e}");
-            std::process::exit(1);
-        }
-    };
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    let backend = {
-        eprintln!("No input backend for this OS yet (Linux comes in a later phase).");
-        std::process::exit(1);
-        #[allow(unreachable_code)]
-        Box::new(pocketremote::input::mock::MockBackend::new())
-            as Box<dyn pocketremote::input::InputBackend>
-    };
+    let backend = make_backend(dry_run);
 
     let executor = Arc::new(Executor::spawn(backend, Os::current()));
     let cfg = ServerConfig::new(ip, computer_name(), platform());
