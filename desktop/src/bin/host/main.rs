@@ -183,11 +183,19 @@ impl App {
         }
     }
 
-    fn refresh(&mut self) {
+    /// Re-read whether a phone is paired. This touches the Keychain, so call it only after an event
+    /// that can change it: start, a finished pairing, or removing the phone.
+    fn sync_paired(&mut self) {
         if let Some(server) = self.server() {
-            let (paused, paired) = (server.is_paused(), server.paired_phone().is_some());
-            self.paused = paused;
-            self.paired = paired;
+            self.paired = server.paired_phone().is_some();
+        }
+    }
+
+    fn refresh(&mut self) {
+        // Cheap, in-memory only: this runs 4 times a second. The paired state lives in the
+        // Keychain, so it is read only when something changes (see sync_paired), never here.
+        if let Some(server) = self.server() {
+            self.paused = server.is_paused();
         }
         if self
             .pairing
@@ -239,6 +247,7 @@ fn update(app: &mut App, msg: Msg) -> Task<Msg> {
         Msg::Engine(Engine::Started(s)) => {
             app.untrusted = s.untrusted.clone();
             app.phase = Phase::Running(s);
+            app.sync_paired();
             app.refresh();
         }
         Msg::Engine(Engine::NoPermission) => app.phase = Phase::NoPermission,
@@ -258,6 +267,7 @@ fn update(app: &mut App, msg: Msg) -> Task<Msg> {
             ServerEvent::PairingFinished { .. } => {
                 app.approval = None;
                 app.pairing = None;
+                app.sync_paired();
                 app.refresh();
             }
         },
@@ -324,6 +334,7 @@ fn update(app: &mut App, msg: Msg) -> Task<Msg> {
                     let _ = server.revoke_phone();
                 }
                 app.confirm_revoke = false;
+                app.sync_paired();
             } else {
                 app.confirm_revoke = true;
             }
