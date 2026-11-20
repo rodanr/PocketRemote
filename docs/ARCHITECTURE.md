@@ -36,7 +36,7 @@ flowchart LR
 | Module | Role |
 |---|---|
 | `noise.rs`, `pairing.rs`, `keystore.rs`, `net.rs`, `server.rs` | Security-sensitive core (owner review required) |
-| `executor.rs`, `input/` | Maps messages to input events through the `InputBackend` trait (`enigo` on macOS and Windows, `MockBackend` in tests) |
+| `executor.rs`, `input/` | Maps messages to input events through the `InputBackend` trait (`enigo` on macOS and Windows, `MockBackend` in tests). The terminal host runs it on its own thread; the Mac app runs it on the **main thread** (`Executor::manual` + `Pump`), because macOS only allows the keyboard-layout lookup there |
 | `main.rs` | Terminal host for development (`--file-keys`, `--print-uri`, `--dry-run`) |
 | `bin/host/` | GUI host (feature `gui`): `engine.rs` starts the server and caches secrets in memory, `tray.rs` menu-bar icon, `main.rs` Control Panel, `login.rs` launch at login |
 

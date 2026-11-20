@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Releases follow semanti
 
 ## [Unreleased]
 
+### Fixed
+- **The Mac app quit by itself and the phone lost its connection** whenever a key that needs the keyboard layout was pressed, for example any browser key (Close tab is Cmd+W, Reload is Cmd+R, back and forward use brackets). macOS only allows that lookup on an app's main thread, and our input ran on a separate thread, which killed the whole app (signal 5, SIGTRAP). In the Mac app, input now runs on the main thread (`Executor::manual` and `Pump`). The terminal tool is unchanged.
+
 ## [1.0.0] - 2026-11-20
 
 First release: Android phone app and macOS host. Ad-hoc signed, not notarized (see docs/INSTALL.md).

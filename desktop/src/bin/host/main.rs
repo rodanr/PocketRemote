@@ -290,6 +290,16 @@ impl App {
     }
 }
 
+/// Runs queued phone commands on this (the main) thread. See `engine::WakingSink` for why.
+fn run_input(app: &App) {
+    if let Phase::Running(s) = &app.phase {
+        s.pump
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .run_pending();
+    }
+}
+
 /// The scripted tour behind POCKETREMOTE_SHOTS: network question (if any), overview, pairing QR.
 fn shot_tour(app: &mut App) -> Option<Task<Msg>> {
     let id = app.win?;
@@ -347,6 +357,7 @@ fn update(app: &mut App, msg: Msg) -> Task<Msg> {
             ]);
         }
         Msg::Tick => {
+            run_input(app); // safety net: never leave a queued command waiting for a missed wake-up
             app.refresh();
             if let Some(task) = shot_tour(app) {
                 return task;
@@ -375,6 +386,7 @@ fn update(app: &mut App, msg: Msg) -> Task<Msg> {
             app.sync_paired();
             app.refresh();
         }
+        Msg::Engine(Engine::InputReady) => run_input(app),
         Msg::Engine(Engine::NoPermission) => app.phase = Phase::NoPermission,
         Msg::Engine(Engine::Failed(m)) => app.phase = Phase::Failed(m),
         Msg::Engine(Engine::Event(ev)) => match ev {

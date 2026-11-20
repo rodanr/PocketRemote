@@ -54,6 +54,10 @@ cd app && npx tsc --noEmit && npx eslint . && npx jest && npm run test:interop
 - Verify visually: boot the Android emulator and use an isolated dry-run host (recipe in `docs/DEVELOPMENT.md`). Do not disturb the owner's real session or send real input while testing. The Mac Control Panel can photograph itself (`POCKETREMOTE_SHOTS`, see `docs/DEVELOPMENT.md`); use that to check it in light and dark.
 - Read tool output before taking screenshots (compile errors look like a broken UI).
 
+## macOS gotcha: input must run on the main thread in the GUI app
+
+`enigo` looks up the keyboard layout for letter keys (Cmd+W and friends) with an API that macOS only allows on an app's main thread. Called from another thread inside a windowed app it kills the process (exit code 133, SIGTRAP), and a plain command-line test does not show it. The GUI host therefore runs input through `Executor::manual` and a main-thread `Pump`. When changing input code, test inside the GUI app (see the probe idea in `docs/DECISIONS.md` 22), not only from a terminal tool.
+
 ## Useful environment switches (development only)
 
 `POCKETREMOTE_FILE_KEYS=1` keys in a 0600 file instead of the Keychain · `POCKETREMOTE_DRY_RUN=1` record input, do not perform it · `POCKETREMOTE_DEBUG=1` log which secrets are touched (names only).

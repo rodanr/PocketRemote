@@ -3,12 +3,13 @@
 
 use iced::futures::{SinkExt, Stream};
 use iced::stream;
-use pocketremote::executor::{Executor, Os};
+use pocketremote::executor::{Executor, Os, Pump};
 use pocketremote::keystore::{FileStore, Keystore, SecretStore, open_default_store};
 use pocketremote::net::{self, NetworkId, TrustStore};
 use pocketremote::paths;
+use pocketremote::protocol::Message;
 use pocketremote::protocol::Platform;
-use pocketremote::server::{Server, ServerConfig, ServerEvent};
+use pocketremote::server::{CommandSink, Server, ServerConfig, ServerEvent};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -80,6 +81,25 @@ impl SecretStore for CachedStore {
     }
 }
 
+/// Hands phone commands to the input worker and wakes the app's main thread to run them. Input must
+/// run on the main thread on macOS: the keyboard-layout lookup behind letter keys (Cmd+W, Cmd+R, ...)
+/// kills the whole app with SIGTRAP on any other thread.
+struct WakingSink {
+    exec: Executor,
+    wake: mpsc::UnboundedSender<()>,
+}
+
+impl CommandSink for WakingSink {
+    fn handle(&self, msg: &Message) {
+        self.exec.handle(msg);
+        let _ = self.wake.send(());
+    }
+    fn release_all(&self) {
+        self.exec.release_all();
+        let _ = self.wake.send(());
+    }
+}
+
 #[derive(Clone)]
 pub struct Started {
     pub server: Arc<Server>,
@@ -87,6 +107,8 @@ pub struct Started {
     pub host_name: String,
     /// Set when this network has not been allowed yet; the server then starts paused.
     pub untrusted: Option<NetworkId>,
+    /// The input worker. Run it with `run_pending()` on the main thread when `Engine::InputReady` arrives.
+    pub pump: Arc<std::sync::Mutex<Pump>>,
 }
 
 impl std::fmt::Debug for Started {
@@ -101,6 +123,8 @@ impl std::fmt::Debug for Started {
 pub enum Engine {
     Started(Started),
     Event(ServerEvent),
+    /// Phone commands are waiting; run `Started::pump` on the main thread.
+    InputReady,
     /// macOS Accessibility (or Windows equivalent) not granted yet. Retried every 2 s.
     NoPermission,
     Failed(String),
@@ -159,7 +183,13 @@ fn backend() -> Result<Box<dyn pocketremote::input::InputBackend>, StartError> {
     }
 }
 
-async fn start() -> Result<(Started, mpsc::UnboundedReceiver<ServerEvent>), StartError> {
+type Started3 = (
+    Started,
+    mpsc::UnboundedReceiver<ServerEvent>,
+    mpsc::UnboundedReceiver<()>,
+);
+
+async fn start() -> Result<Started3, StartError> {
     debug("starting the server");
     let Some(ip) = net::default_route_ip().filter(|ip| net::ip_allowed(*ip)) else {
         return Err(StartError::Failed(
@@ -188,7 +218,12 @@ async fn start() -> Result<(Started, mpsc::UnboundedReceiver<ServerEvent>), Star
         None => Some(NetworkId::new("unknown network", None)),
     };
 
-    let executor = Arc::new(Executor::spawn(backend()?, Os::current()));
+    let (exec, pump) = Executor::manual(backend()?, Os::current());
+    let (wake_tx, wake_rx) = mpsc::unbounded_channel();
+    let executor = Arc::new(WakingSink {
+        exec,
+        wake: wake_tx,
+    });
     let host_name = computer_name();
     let cfg = ServerConfig::new(ip, host_name.clone(), platform());
     let (tx, rx) = mpsc::unbounded_channel();
@@ -208,8 +243,10 @@ async fn start() -> Result<(Started, mpsc::UnboundedReceiver<ServerEvent>), Star
             addr,
             host_name,
             untrusted,
+            pump: Arc::new(std::sync::Mutex::new(pump)),
         },
         rx,
+        wake_rx,
     ))
 }
 
@@ -218,14 +255,28 @@ pub fn worker() -> impl Stream<Item = Engine> {
     stream::channel(64, async |mut out| {
         loop {
             match start().await {
-                Ok((started, mut rx)) => {
+                Ok((started, mut rx, mut wake)) => {
                     let _ = out.send(Engine::Started(started)).await;
-                    while let Some(ev) = rx.recv().await {
-                        if out.send(Engine::Event(ev)).await.is_err() {
-                            return;
+                    loop {
+                        tokio::select! {
+                            ev = rx.recv() => {
+                                let Some(ev) = ev else { return };
+                                if out.send(Engine::Event(ev)).await.is_err() {
+                                    return;
+                                }
+                            }
+                            w = wake.recv() => {
+                                if w.is_none() {
+                                    return;
+                                }
+                                // Many commands may have queued: one wake-up runs them all.
+                                while wake.try_recv().is_ok() {}
+                                if out.send(Engine::InputReady).await.is_err() {
+                                    return;
+                                }
+                            }
                         }
                     }
-                    return;
                 }
                 Err(StartError::NoPermission) => {
                     let _ = out.send(Engine::NoPermission).await;
@@ -266,6 +317,30 @@ mod tests {
         fn delete(&self, n: &str) -> StoreResult<()> {
             self.1.delete(n)
         }
+    }
+
+    #[test]
+    fn a_phone_command_wakes_the_owner_and_runs_only_when_pumped() {
+        use pocketremote::input::mock::MockBackend;
+        use pocketremote::protocol::KeyName;
+        let mock = MockBackend::new();
+        let log = mock.log();
+        let (exec, mut pump) = Executor::manual(Box::new(mock), Os::Macos);
+        let (wake_tx, mut wake_rx) = mpsc::unbounded_channel();
+        let sink = WakingSink {
+            exec,
+            wake: wake_tx,
+        };
+        sink.handle(&Message::Key {
+            key: KeyName::Enter,
+        });
+        assert!(wake_rx.try_recv().is_ok(), "the main thread is woken");
+        assert!(
+            log.lock().unwrap().is_empty(),
+            "the command has not run yet"
+        );
+        pump.run_pending(); // what the app's main thread does on `InputReady`
+        assert_eq!(log.lock().unwrap().len(), 1);
     }
 
     #[test]

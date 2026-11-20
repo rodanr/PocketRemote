@@ -247,27 +247,63 @@ impl Worker {
         self.scroll_rem = (0.0, 0.0);
     }
 
+    /// Handles one batch of queued commands. Returns false after `Shutdown`.
+    fn run_batch(&mut self, batch: Vec<Command>) -> bool {
+        for c in coalesce(batch) {
+            match c {
+                Command::Msg(m) => self.handle(m),
+                Command::ReleaseAll => self.release_all(),
+                Command::Barrier(done) => {
+                    let _ = done.send(());
+                }
+                Command::Shutdown => {
+                    self.release_all();
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
     fn run(mut self, rx: Receiver<Command>) {
         while let Ok(first) = rx.recv() {
             let mut batch = vec![first];
             while let Ok(c) = rx.try_recv() {
                 batch.push(c);
             }
-            for c in coalesce(batch) {
-                match c {
-                    Command::Msg(m) => self.handle(m),
-                    Command::ReleaseAll => self.release_all(),
-                    Command::Barrier(done) => {
-                        let _ = done.send(());
-                    }
-                    Command::Shutdown => {
-                        self.release_all();
-                        return;
-                    }
-                }
+            if !self.run_batch(batch) {
+                return;
             }
         }
         self.release_all();
+    }
+}
+
+/// The input worker for callers that must run input on a thread they own. The macOS app needs this:
+/// the keyboard-layout lookup behind letter keys (Cmd+W, Cmd+R, ...) may only run on the main
+/// thread, and on any other thread it kills the whole app with SIGTRAP. The app calls
+/// [`Pump::run_pending`] from its main thread whenever commands are queued.
+pub struct Pump {
+    worker: Worker,
+    rx: Receiver<Command>,
+}
+
+impl Pump {
+    /// Runs everything queued so far, on the calling thread.
+    pub fn run_pending(&mut self) {
+        let mut batch = Vec::new();
+        while let Ok(c) = self.rx.try_recv() {
+            batch.push(c);
+        }
+        if !batch.is_empty() {
+            let _ = self.worker.run_batch(batch);
+        }
+    }
+}
+
+impl Drop for Pump {
+    fn drop(&mut self) {
+        self.worker.release_all();
     }
 }
 
@@ -298,6 +334,27 @@ impl Executor {
         }
     }
 
+    /// Like [`Executor::spawn`], but no thread is started: commands are queued and run by whoever
+    /// calls [`Pump::run_pending`] (see `Pump` for why).
+    pub fn manual(backend: Box<dyn InputBackend>, os: Os) -> (Self, Pump) {
+        let (tx, rx) = sync_channel(QUEUE_CAPACITY);
+        let worker = Worker {
+            backend,
+            os,
+            profile: Profile::generic(),
+            held: BTreeSet::new(),
+            move_rem: (0.0, 0.0),
+            scroll_rem: (0.0, 0.0),
+        };
+        (
+            Self {
+                tx,
+                thread: Mutex::new(None),
+            },
+            Pump { worker, rx },
+        )
+    }
+
     /// Wait until everything queued so far has been processed. For tests and shutdown.
     pub fn flush(&self) {
         let (tx, rx) = channel();
@@ -323,9 +380,16 @@ impl CommandSink for Executor {
 
 impl Drop for Executor {
     fn drop(&mut self) {
-        let _ = self.tx.send(Command::Shutdown);
-        if let Some(t) = self.thread.lock().unwrap_or_else(|e| e.into_inner()).take() {
-            let _ = t.join();
+        let thread = self.thread.lock().unwrap_or_else(|e| e.into_inner()).take();
+        match thread {
+            Some(t) => {
+                let _ = self.tx.send(Command::Shutdown);
+                let _ = t.join();
+            }
+            // No worker thread: never block on a queue nobody may be draining.
+            None => {
+                let _ = self.tx.try_send(Command::Shutdown);
+            }
         }
     }
 }
@@ -351,6 +415,32 @@ mod tests {
 
     fn mv(dx: f32, dy: f32) -> Message {
         Message::Move { dx, dy }
+    }
+
+    #[test]
+    fn manual_executor_runs_commands_only_when_pumped_and_on_the_calling_thread() {
+        let mock = MockBackend::new();
+        let log = mock.log();
+        let (ex, mut pump) = Executor::manual(Box::new(mock), Os::Macos);
+        ex.handle(&Message::Key {
+            key: KeyName::Enter,
+        });
+        ex.handle(&Message::Key {
+            key: KeyName::Escape,
+        });
+        std::thread::sleep(Duration::from_millis(50));
+        assert!(
+            log.lock().unwrap().is_empty(),
+            "nothing runs until the owner pumps"
+        );
+        pump.run_pending();
+        assert_eq!(
+            log.lock().unwrap().len(),
+            2,
+            "both queued commands ran in the pump call"
+        );
+        ex.release_all();
+        pump.run_pending(); // must not panic or hang
     }
 
     #[test]
