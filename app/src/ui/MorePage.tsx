@@ -17,22 +17,22 @@ export function MorePage({ send }: { send: (m: Message) => void }) {
   const click = (button: 'left' | 'right') => () => send({ type: 'click', button, count: 1 });
   return (
     <View style={s.page}>
-      <Group title="SLIDES">
+      <Group title="SLIDES" flex={1}>
         <View style={s.row}>
-          <Key label="Previous slide" icon="page-previous-outline" text="Previous slide" height={76} onPress={key('page_up')} />
-          <Key label="Next slide" icon="page-next-outline" iconAfter text="Next slide" height={76} onPress={key('page_down')} />
+          <Key label="Previous slide" text="Previous slide" textSize={18} height={48} onPress={key('page_up')} />
+          <Key label="Next slide" text="Next slide" textSize={18} height={48} onPress={key('page_down')} />
         </View>
       </Group>
-      <Group title="TRACKS">
+      <Group title="TRACKS" flex={1}>
         <View style={s.row}>
-          <Key label="Previous track" icon="skip-previous" text="Previous track" height={60} onPress={media('prev')} />
-          <Key label="Next track" icon="skip-next" iconAfter text="Next track" height={60} onPress={media('next')} />
+          <Key label="Previous track" text="Previous track" textSize={18} height={48} onPress={media('prev')} />
+          <Key label="Next track" text="Next track" textSize={18} height={48} onPress={media('next')} />
         </View>
       </Group>
-      <Group title="CLICKS">
+      <Group title="CLICKS" flex={1}>
         <View style={s.row}>
-          <Key label="Left click" icon="mouse-left-click-outline" text="Left click" height={60} onPress={click('left')} />
-          <Key label="Right click" icon="mouse-right-click-outline" text="Right click" height={60} onPress={click('right')} />
+          <Key label="Left click" text="Left click" textSize={18} height={48} onPress={click('left')} />
+          <Key label="Right click" text="Right click" textSize={18} height={48} onPress={click('right')} />
         </View>
       </Group>
     </View>
@@ -40,7 +40,7 @@ export function MorePage({ send }: { send: (m: Message) => void }) {
 }
 
 const s = StyleSheet.create({
-  // Fills the pager's height and spreads the groups evenly, so the page never looks empty.
-  page: { flex: 1, justifyContent: 'space-between', gap: space.s },
-  row: { flexDirection: 'row', gap: space.s },
+  // Fills the pager's height: the keys stretch to fit, so there are no empty gaps.
+  page: { flex: 1, gap: space.s },
+  row: { flex: 1, flexDirection: 'row', gap: space.s },
 });

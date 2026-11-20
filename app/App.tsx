@@ -9,7 +9,7 @@ import { clearPairing, loadOrCreatePhoneKeys, loadPairing, loadSettings, saveSet
 import { color, space } from './src/theme';
 import { DEFAULT_POINTER, type PointerSettings } from './src/trackpad/pointer';
 import { useRemote } from './src/useRemote';
-import { BrowserBlock } from './src/ui/BrowserRow';
+import { BrowserPage } from './src/ui/BrowserPage';
 import { Dpad } from './src/ui/Dpad';
 import { KeyboardBar } from './src/ui/KeyboardBar';
 import { MediaDeck } from './src/ui/MediaDeck';
@@ -72,9 +72,9 @@ function Remote({ boot, onForget }: { boot: Boot; onForget: () => void }) {
                       <MediaDeck send={send} active={usable} />
                       <View style={s.row}>
                         <Dpad send={send} />
-                        <BrowserBlock send={send} />
                       </View>
                     </View>,
+                    <BrowserPage key="browser" send={send} />,
                     <MorePage key="more" send={send} />,
                   ]}
                 />
@@ -136,5 +136,5 @@ const s = StyleSheet.create({
   controls: { gap: space.s },
   page: { gap: space.s },
   dim: { opacity: 0.5 },
-  row: { flexDirection: 'row', gap: space.m, alignItems: 'flex-end' },
+  row: { flexDirection: 'row', justifyContent: 'center' },
 });

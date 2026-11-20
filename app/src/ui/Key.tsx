@@ -14,17 +14,17 @@ export interface KeyProps {
   iconAfter?: boolean;
   /** Short visible text, used with or instead of an icon. */
   text?: string;
+  /** Text size in sp. Every key on a page uses the same size. */
+  textSize?: number;
   onPress: () => void;
   /** The one lead action on the screen: amber. */
   lead?: boolean;
   /** Repeat while held (volume). */
   repeat?: boolean;
-  /** Needs a deliberate hold (Close tab): fires after this many ms. */
-  holdMs?: number;
   flex?: number;
   height?: number;
   round?: boolean;
-  /** Unfilled, outlined in the danger colour (Close tab). */
+  /** Unfilled, outlined in the danger colour (Close tab), so it stays easy to tell apart. */
   danger?: boolean;
   style?: StyleProp<ViewStyle>;
 }
@@ -32,7 +32,7 @@ export interface KeyProps {
 const REPEAT_DELAY = 350;
 const REPEAT_EVERY = 110;
 
-export function Key({ label, icon, iconAfter, text, onPress, lead, repeat, holdMs, flex = 1, height = 52, round, danger, style }: KeyProps) {
+export function Key({ label, icon, iconAfter, text, textSize = 13, onPress, lead, repeat, flex = 1, height = 48, round, danger, style }: KeyProps) {
   const timer = useRef<ReturnType<typeof setTimeout> | ReturnType<typeof setInterval> | null>(null);
   const stop = () => {
     if (timer.current !== null) {
@@ -54,10 +54,7 @@ export function Key({ label, icon, iconAfter, text, onPress, lead, repeat, holdM
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityHint={holdMs ? 'Press and hold' : undefined}
-      onPress={holdMs || repeat ? undefined : fire}
-      onLongPress={holdMs ? fire : undefined}
-      delayLongPress={holdMs}
+      onPress={repeat ? undefined : fire}
       onPressIn={
         repeat
           ? () => {
@@ -79,12 +76,7 @@ export function Key({ label, icon, iconAfter, text, onPress, lead, repeat, holdM
     >
       {icon && !iconAfter ? glyph : null}
       {text ? (
-        <Text
-          style={[s.text, lead && { color: color.onAmber }, danger && { color: color.danger }]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.75}
-        >
+        <Text style={[s.text, { fontSize: textSize }, lead && { color: color.onAmber }, danger && { color: color.danger }]} numberOfLines={2}>
           {text}
         </Text>
       ) : null}
@@ -101,5 +93,5 @@ const s = StyleSheet.create({
   pressed: { backgroundColor: color.surfacePressed },
   lead: { backgroundColor: color.amber },
   leadPressed: { backgroundColor: '#e89f3e' },
-  text: { ...t.body, fontSize: 14, flexShrink: 1 },
+  text: { ...t.body, flexShrink: 1, textAlign: 'center' },
 });

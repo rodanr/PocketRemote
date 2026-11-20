@@ -105,7 +105,7 @@ const c = StyleSheet.create({
 });
 
 const s = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: 56 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: 52 },
   status: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.s + 4, minHeight: TARGET },
   chip: { minHeight: 36, paddingHorizontal: space.m - 4, borderRadius: 18, justifyContent: 'center', backgroundColor: color.surface },
   chipText: { ...t.body, fontSize: 13, textTransform: 'capitalize' },

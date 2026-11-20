@@ -8,7 +8,7 @@ export function Group({ title, children, flex }: { title: string; children: Reac
       <Text style={s.title} accessibilityRole="header">
         {title}
       </Text>
-      {children}
+      <View style={flex ? { flex: 1 } : undefined}>{children}</View>
     </View>
   );
 }

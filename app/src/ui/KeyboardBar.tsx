@@ -104,7 +104,7 @@ export function KeyboardBar({ send, onTyping }: Props) {
   );
 }
 
-const H = 52; // one height for the field, Live and Send
+const H = 48; // one height for the field, Live and Send
 const s = StyleSheet.create({
   bar: { flexDirection: 'row', gap: space.s, alignItems: 'center' },
   field: { flex: 1, height: H, borderRadius: H / 2, backgroundColor: color.surface, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: 'transparent', paddingHorizontal: space.m, ...t.body },
