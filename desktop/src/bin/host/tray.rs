@@ -22,9 +22,10 @@ pub enum Action {
     Quit,
 }
 
-/// The logo kit's tray icons (36 px = 18 pt at 2x), embedded as raw RGBA.
+/// The logo kit's tray icons (36 px glyph, centred on a transparent 48 px canvas so it shows at about
+/// 15 pt; the library scales the whole image to 22 pt), embedded as raw RGBA.
 /// Regenerate with `python3 brand/build/make_tray_rgba.py`.
-const SIZE: u32 = 36;
+const SIZE: u32 = 48;
 
 fn icon(look: Look) -> Icon {
     let rgba: &[u8] = match look {

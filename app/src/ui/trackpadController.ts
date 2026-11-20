@@ -2,13 +2,13 @@
 // haptics and the light animation values. Kept out of the component so rendering stays pure.
 import { Animated } from 'react-native';
 import type { Message } from '../protocol';
-import { gain, MoveBatcher, scrollAmount, type PointerSettings } from '../trackpad/pointer';
+import { gain, MoveBatcher, scrollAmount, type AppSettings } from '../trackpad/pointer';
 import { Recognizer, type TrackAction, type Touch } from '../trackpad/recognizer';
 import { click, lock, press } from './haptics';
 
 export class TrackpadController {
   send: (m: Message) => void;
-  settings: PointerSettings;
+  settings: AppSettings;
   reduceMotion = false;
   /** Y of the first finger inside the pad; far outside when no finger is down. */
   readonly fingerY = new Animated.Value(-1000);
@@ -18,7 +18,7 @@ export class TrackpadController {
   private lastMove = 0;
   private readonly rec: Recognizer;
 
-  constructor(send: (m: Message) => void, settings: PointerSettings) {
+  constructor(send: (m: Message) => void, settings: AppSettings) {
     this.send = send;
     this.settings = settings;
     const moves = new MoveBatcher(
@@ -74,7 +74,7 @@ export class TrackpadController {
     }
   }
 
-  configure(send: (m: Message) => void, settings: PointerSettings): void {
+  configure(send: (m: Message) => void, settings: AppSettings): void {
     this.send = send;
     this.settings = settings;
   }

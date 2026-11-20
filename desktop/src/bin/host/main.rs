@@ -528,15 +528,32 @@ fn update(app: &mut App, msg: Msg) -> Task<Msg> {
     Task::none()
 }
 
-/// A plain macOS notification. Fixed text only: nothing from the session is ever shown or logged.
+/// A macOS notification with fixed text only (nothing from the session is ever shown or logged).
+/// Run from the installed app bundle, it is sent *as PocketRemote* so macOS shows our icon; from a
+/// development build (or if that fails) it falls back to a plain notification.
 fn notify(message: &'static str) {
     #[cfg(target_os = "macos")]
-    let _ = std::process::Command::new("osascript")
-        .args([
-            "-e",
-            &format!("display notification \"{message}\" with title \"PocketRemote\""),
-        ])
-        .spawn();
+    std::thread::spawn(move || {
+        // Only address the app when this process IS the installed bundle: `tell application id` would
+        // otherwise launch the installed copy while developing.
+        let in_bundle = std::env::current_exe()
+            .ok()
+            .is_some_and(|p| p.to_string_lossy().contains(".app/Contents/MacOS/"));
+        let as_app = format!(
+            "tell application id \"com.pocketremote.host\" to display notification \"{message}\" with title \"PocketRemote\""
+        );
+        let plain = format!("display notification \"{message}\" with title \"PocketRemote\"");
+        let sent_as_app = in_bundle
+            && std::process::Command::new("osascript")
+                .args(["-e", &as_app])
+                .status()
+                .is_ok_and(|s| s.success());
+        if !sent_as_app {
+            let _ = std::process::Command::new("osascript")
+                .args(["-e", &plain])
+                .status();
+        }
+    });
     #[cfg(not(target_os = "macos"))]
     let _ = message;
 }

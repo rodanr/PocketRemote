@@ -1,4 +1,4 @@
-import { MoveBatcher, DEFAULT_POINTER, gain, scrollAmount } from '../pointer';
+import { MoveBatcher, DEFAULT_SETTINGS, gain, scrollAmount } from '../pointer';
 import { Recognizer, type TrackAction, type Touch } from '../recognizer';
 
 /** Fake clock and scheduler so long-press timing is deterministic. */
@@ -153,17 +153,17 @@ describe('Recognizer', () => {
 
 describe('pointer helpers', () => {
   test('acceleration: faster swipes get a bigger gain, capped', () => {
-    const slow = gain(2, 16, DEFAULT_POINTER);
-    const fast = gain(60, 16, DEFAULT_POINTER);
-    const crazy = gain(600, 16, DEFAULT_POINTER);
+    const slow = gain(2, 16, DEFAULT_SETTINGS);
+    const fast = gain(60, 16, DEFAULT_SETTINGS);
+    const crazy = gain(600, 16, DEFAULT_SETTINGS);
     expect(fast).toBeGreaterThan(slow);
-    expect(crazy).toBeCloseTo(DEFAULT_POINTER.speed * (1 + DEFAULT_POINTER.acceleration * 2));
-    expect(gain(5, 16, { ...DEFAULT_POINTER, acceleration: 0 })).toBe(DEFAULT_POINTER.speed);
+    expect(crazy).toBeCloseTo(DEFAULT_SETTINGS.speed * (1 + DEFAULT_SETTINGS.acceleration * 2));
+    expect(gain(5, 16, { ...DEFAULT_SETTINGS, acceleration: 0 })).toBe(DEFAULT_SETTINGS.speed);
   });
 
   test('natural scroll flips the sign', () => {
-    expect(scrollAmount(3, 10, { ...DEFAULT_POINTER, naturalScroll: true })).toEqual({ dx: -3, dy: -10 });
-    expect(scrollAmount(3, 10, { ...DEFAULT_POINTER, naturalScroll: false })).toEqual({ dx: 3, dy: 10 });
+    expect(scrollAmount(3, 10, { ...DEFAULT_SETTINGS, naturalScroll: true })).toEqual({ dx: -3, dy: -10 });
+    expect(scrollAmount(3, 10, { ...DEFAULT_SETTINGS, naturalScroll: false })).toEqual({ dx: 3, dy: 10 });
   });
 
   test('batcher sends one move per frame and nothing when idle', () => {

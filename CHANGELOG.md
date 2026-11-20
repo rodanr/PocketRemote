@@ -4,6 +4,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Releases follow semanti
 
 ## [Unreleased]
 
+### Added
+- Settings: a **Vibration** switch, a **Keep screen on** switch and a **Scroll speed** stepper.
+
+### Changed
+- Phone: 8 dp more space between the keys and the trackpad, so a thumb on the lowest keys is clear of the trackpad edge.
+- Mac: the menu-bar icon is smaller (the "P" now measures about 15 pt, like the system icons), and the "Phone connected" notification is sent as PocketRemote so it uses the app's icon.
+
 ## [1.0.1] - 2026-11-21
 
 Fixes a crash in 1.0.0: the Mac app quit by itself and the phone lost its connection when a browser key was pressed. **Upgrade from 1.0.0.**

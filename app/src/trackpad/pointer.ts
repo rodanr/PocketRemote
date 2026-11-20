@@ -1,25 +1,38 @@
 // Pointer acceleration and per-frame move batching. Plain TypeScript.
 
-export interface PointerSettings {
+export interface AppSettings {
   /** Base multiplier. 1 = one phone pixel moves the cursor one pixel. */
   speed: number;
   /** 0 = linear, 1 = strong acceleration. */
   acceleration: number;
   naturalScroll: boolean;
+  /** Scroll multiplier on top of the phone's finger distance. 1 = default. */
+  scrollSpeed: number;
+  /** Vibration feedback on keys, taps and connection loss. */
+  haptics: boolean;
+  /** Keep the phone screen on while the remote is open. */
+  keepAwake: boolean;
 }
 
-export const DEFAULT_POINTER: PointerSettings = { speed: 1.6, acceleration: 0.5, naturalScroll: true };
+export const DEFAULT_SETTINGS: AppSettings = {
+  speed: 1.6,
+  acceleration: 0.5,
+  naturalScroll: true,
+  scrollSpeed: 1,
+  haptics: true,
+  keepAwake: true,
+};
 
 /** Gain for a move of `distance` px that took `dtMs` ms. Faster swipes travel further. */
-export function gain(distance: number, dtMs: number, s: PointerSettings): number {
+export function gain(distance: number, dtMs: number, s: AppSettings): number {
   const v = dtMs > 0 ? distance / dtMs : 0; // px per ms
   return s.speed * (1 + s.acceleration * Math.min(v / 2, 2));
 }
 
 /** Scroll amounts: natural scroll moves content with the fingers. */
-export function scrollAmount(dx: number, dy: number, s: PointerSettings): { dx: number; dy: number } {
+export function scrollAmount(dx: number, dy: number, s: AppSettings): { dx: number; dy: number } {
   const k = s.naturalScroll ? -1 : 1;
-  return { dx: k * dx, dy: k * dy };
+  return { dx: k * dx * s.scrollSpeed, dy: k * dy * s.scrollSpeed };
 }
 
 /**

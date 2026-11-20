@@ -3,7 +3,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { fromHex, toHex } from './hex';
 import { generateKeypair, type Keypair, type Rng } from './noise';
-import { DEFAULT_POINTER, type PointerSettings } from './trackpad/pointer';
+import { DEFAULT_SETTINGS, type AppSettings } from './trackpad/pointer';
 
 const K = {
   priv: 'pr.phone.priv',
@@ -58,22 +58,25 @@ export async function clearPairing(): Promise<void> {
   await Promise.all([K.addr, K.hostKey, K.hostId, K.hostName].map((k) => SecureStore.deleteItemAsync(k)));
 }
 
-export async function loadSettings(): Promise<PointerSettings> {
+export async function loadSettings(): Promise<AppSettings> {
   try {
     const raw = await SecureStore.getItemAsync(K.settings);
-    const j = raw ? (JSON.parse(raw) as Partial<PointerSettings>) : {};
+    const j = raw ? (JSON.parse(raw) as Partial<AppSettings>) : {};
     const clamp = (v: unknown, lo: number, hi: number, d: number) =>
       typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d;
     return {
-      speed: clamp(j.speed, 0.5, 4, DEFAULT_POINTER.speed),
-      acceleration: clamp(j.acceleration, 0, 1, DEFAULT_POINTER.acceleration),
-      naturalScroll: typeof j.naturalScroll === 'boolean' ? j.naturalScroll : DEFAULT_POINTER.naturalScroll,
+      speed: clamp(j.speed, 0.5, 4, DEFAULT_SETTINGS.speed),
+      acceleration: clamp(j.acceleration, 0, 1, DEFAULT_SETTINGS.acceleration),
+      naturalScroll: typeof j.naturalScroll === 'boolean' ? j.naturalScroll : DEFAULT_SETTINGS.naturalScroll,
+      scrollSpeed: clamp(j.scrollSpeed, 0.5, 3, DEFAULT_SETTINGS.scrollSpeed),
+      haptics: typeof j.haptics === 'boolean' ? j.haptics : DEFAULT_SETTINGS.haptics,
+      keepAwake: typeof j.keepAwake === 'boolean' ? j.keepAwake : DEFAULT_SETTINGS.keepAwake,
     };
   } catch {
-    return DEFAULT_POINTER;
+    return DEFAULT_SETTINGS;
   }
 }
 
-export async function saveSettings(s: PointerSettings): Promise<void> {
+export async function saveSettings(s: AppSettings): Promise<void> {
   await SecureStore.setItemAsync(K.settings, JSON.stringify(s));
 }

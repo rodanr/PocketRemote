@@ -42,7 +42,22 @@ def decode(path):
         rows.append(bytes(line)); prev = line
     return w, h, b"".join(rows)
 
+# The menu-bar library scales the whole image to 22 pt tall, and the glyph fills almost all of it,
+# which is bigger than the system icons (about 15 pt). Pad the canvas so the glyph comes out near 15 pt.
+CANVAS = 48
+
+def pad(w, h, px, size):
+    assert w <= size and h <= size
+    ox, oy = (size - w) // 2, (size - h) // 2
+    out_px = bytearray(size * size * 4)
+    for y in range(h):
+        row = px[y * w * 4:(y + 1) * w * 4]
+        start = ((y + oy) * size + ox) * 4
+        out_px[start:start + w * 4] = row
+    return bytes(out_px)
+
 for name in ("tray-waiting-template", "tray-paused-template", "tray-controlled"):
     w, h, px = decode(src / f"{name}@2x.png")
-    (out / f"{name.replace('-template', '')}.rgba").write_bytes(px)
-    print(name, w, h, len(px))
+    padded = pad(w, h, px, CANVAS)
+    (out / f"{name.replace('-template', '')}.rgba").write_bytes(padded)
+    print(name, f"{w}x{h} -> {CANVAS}x{CANVAS}", len(padded))

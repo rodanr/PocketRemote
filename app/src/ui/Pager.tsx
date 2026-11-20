@@ -34,8 +34,8 @@ export function Pager({ pages }: { pages: React.ReactNode[] }) {
 }
 
 const s = StyleSheet.create({
-  // Centred in the existing 8 dp gap above the trackpad, so they cost no height.
-  dots: { position: 'absolute', left: 0, right: 0, bottom: -6, height: 4, flexDirection: 'row', justifyContent: 'center', gap: 5 },
+  // Centred in the 16 dp gap above the trackpad (8 dp stage gap plus 8 dp margin), so they cost no extra height.
+  dots: { position: 'absolute', left: 0, right: 0, bottom: -10, height: 4, flexDirection: 'row', justifyContent: 'center', gap: 5 },
   dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: color.rimStrong },
   dotOn: { width: 14, backgroundColor: color.textMuted },
 });

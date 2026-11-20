@@ -67,5 +67,8 @@ Three swipeable pages (dots above the trackpad show which one):
 - **Phone palette:** ground #141210, key #2e2a24 with a 1 dp #6b6152 edge (about 3:1), panel/trackpad #1f1c18, text #ede7dc, muted #b0a08a, danger #ff7a6a. One key radius (16); only the D-pad and OK stay round. Sentence-case labels. Settings: 48 dp keys, fixed value slot, full-width "Forget this computer" danger key.
 - **Mac panel:** follows the system light/dark setting (iced `system::theme`). Dark: ground #1c1b19, card #262421, button #46423c with #756d61 edge. Light: ground #f4f1ec, white cards, white buttons with #8f8577 edge, amber text #9a5a00. Buttons hug their label, 30 px high, radius 8; cards radius 10; actions right-aligned, lead last; Remove is a quiet red text button. Window 400x560. The QR plate is always white.
 
+## Settings and spacing (2026-11-21)
+Settings (phone) has Pointer (speed, acceleration, scroll speed, natural scroll) and General (vibration, keep screen on). The gap between the key area and the trackpad is 16 dp. The Mac tray icon is the brand mark padded to a 48 px canvas so it shows at about 15 pt.
+
 ## Typeface (2026-11-20)
 Manrope (SIL Open Font License, free), regular 400 / medium 500 / semibold 600, on the phone (`expo-font`, via `app/src/ui/Text.tsx` which maps weights to families because Android ignores `fontWeight` for custom fonts) and on the Mac panel (bundled in `desktop/assets/fonts/` with its license). The Mac app and tray use the logo kit icons (`brand/kit/dist/macos/AppIcon.icns`, `brand/kit/dist/tray/`).

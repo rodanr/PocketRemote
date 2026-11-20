@@ -1,14 +1,14 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { Text } from './Text';
-import type { PointerSettings } from '../trackpad/pointer';
+import type { AppSettings } from '../trackpad/pointer';
 import { color, space, TARGET, type as t } from '../theme';
 import { tick } from './haptics';
 
 interface Props {
-  settings: PointerSettings;
+  settings: AppSettings;
   hostName: string;
-  onChange: (s: PointerSettings) => void;
+  onChange: (s: AppSettings) => void;
   onBack: () => void;
   onForget: () => void;
 }
@@ -55,9 +55,21 @@ export function SettingsScreen({ settings, hostName, onChange, onBack, onForget 
         <Text style={[t.label, { marginBottom: space.xs }]} accessibilityRole="header">Pointer</Text>
         <Stepper label="Speed" value={settings.speed} display={`${settings.speed.toFixed(2)}×`} onDec={() => onChange({ ...settings, speed: Math.max(0.5, round(settings.speed - 0.25)) })} onInc={() => onChange({ ...settings, speed: Math.min(4, round(settings.speed + 0.25)) })} />
         <Stepper label="Acceleration" value={settings.acceleration} display={`${Math.round(settings.acceleration * 100)}%`} onDec={() => onChange({ ...settings, acceleration: Math.max(0, round(settings.acceleration - 0.25)) })} onInc={() => onChange({ ...settings, acceleration: Math.min(1, round(settings.acceleration + 0.25)) })} />
+        <Stepper label="Scroll speed" value={settings.scrollSpeed} display={`${settings.scrollSpeed.toFixed(2)}×`} onDec={() => onChange({ ...settings, scrollSpeed: Math.max(0.5, round(settings.scrollSpeed - 0.25)) })} onInc={() => onChange({ ...settings, scrollSpeed: Math.min(3, round(settings.scrollSpeed + 0.25)) })} />
         <View style={s.row}>
           <Text style={t.body}>Natural scroll</Text>
           <Switch value={settings.naturalScroll} onValueChange={(v) => onChange({ ...settings, naturalScroll: v })} trackColor={{ true: color.amber, false: color.surface }} thumbColor={color.text} accessibilityLabel="Natural scroll" />
+        </View>
+        <Text style={[t.label, { marginTop: space.m, marginBottom: space.xs }]} accessibilityRole="header">
+          General
+        </Text>
+        <View style={s.row}>
+          <Text style={t.body}>Vibration</Text>
+          <Switch value={settings.haptics} onValueChange={(v) => onChange({ ...settings, haptics: v })} trackColor={{ true: color.amber, false: color.surface }} thumbColor={color.text} accessibilityLabel="Vibration" />
+        </View>
+        <View style={s.row}>
+          <Text style={t.body}>Keep screen on</Text>
+          <Switch value={settings.keepAwake} onValueChange={(v) => onChange({ ...settings, keepAwake: v })} trackColor={{ true: color.amber, false: color.surface }} thumbColor={color.text} accessibilityLabel="Keep screen on" />
         </View>
         <Text style={[t.label, { marginTop: space.m, marginBottom: space.s }]} accessibilityRole="header">
           Trackpad gestures

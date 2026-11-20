@@ -1,6 +1,6 @@
 import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, useFonts } from '@expo-google-fonts/manrope';
 import { StatusBar } from 'expo-status-bar';
-import { useKeepAwake } from 'expo-keep-awake';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect, useState } from 'react';
 import { BackHandler, Keyboard, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -8,7 +8,7 @@ import { type Keypair } from './src/noise';
 import { secureRng } from './src/rng';
 import { clearPairing, loadOrCreatePhoneKeys, loadPairing, loadSettings, saveSettings, type Pairing } from './src/storage';
 import { color, space } from './src/theme';
-import { DEFAULT_POINTER, type PointerSettings } from './src/trackpad/pointer';
+import { DEFAULT_SETTINGS, type AppSettings } from './src/trackpad/pointer';
 import { useRemote } from './src/useRemote';
 import { KeyboardBar } from './src/ui/KeyboardBar';
 import { MainPage } from './src/ui/MainPage';
@@ -17,17 +17,17 @@ import { Pager } from './src/ui/Pager';
 import { PairingScreen } from './src/ui/PairingScreen';
 import { SettingsScreen } from './src/ui/SettingsScreen';
 import { ConnectionDialog } from './src/ui/ConnectionDialog';
+import { setHapticsEnabled } from './src/ui/haptics';
 import { StatusHeader } from './src/ui/StatusHeader';
 import { Trackpad } from './src/ui/Trackpad';
 
 interface Boot {
   phone: Keypair;
   pairing: Pairing | null;
-  settings: PointerSettings;
+  settings: AppSettings;
 }
 
 function Remote({ boot, onForget }: { boot: Boot; onForget: () => void }) {
-  useKeepAwake();
   const pairing = boot.pairing!;
   const { state, send, reconnect } = useRemote(pairing, boot.phone);
   const [settings, setSettings] = useState(boot.settings);
@@ -38,6 +38,18 @@ function Remote({ boot, onForget }: { boot: Boot; onForget: () => void }) {
   const landscape = width > height;
   const connected = state.phase === 'connected';
   const usable = connected && !state.status?.paused;
+
+  // Settings that act outside the screen's own layout: vibration and keeping the phone awake.
+  useEffect(() => {
+    setHapticsEnabled(settings.haptics);
+  }, [settings.haptics]);
+  useEffect(() => {
+    if (!settings.keepAwake) return;
+    void activateKeepAwakeAsync('remote');
+    return () => {
+      void deactivateKeepAwake('remote');
+    };
+  }, [settings.keepAwake]);
 
   // The window does not resize for the keyboard here, so lift the content above it ourselves.
   useEffect(() => {
@@ -59,7 +71,7 @@ function Remote({ boot, onForget }: { boot: Boot; onForget: () => void }) {
     return () => sub.remove();
   }, [sheet]);
 
-  const change = useCallback((s: PointerSettings) => {
+  const change = useCallback((s: AppSettings) => {
     setSettings(s);
     void saveSettings(s);
   }, []);
@@ -120,7 +132,7 @@ export default function App() {
 
   useEffect(() => {
     void (async () => {
-      const [phone, pairing, settings] = await Promise.all([loadOrCreatePhoneKeys(secureRng), loadPairing(), loadSettings().catch(() => DEFAULT_POINTER)]);
+      const [phone, pairing, settings] = await Promise.all([loadOrCreatePhoneKeys(secureRng), loadPairing(), loadSettings().catch(() => DEFAULT_SETTINGS)]);
       setBoot({ phone, pairing, settings });
     })();
   }, []);
@@ -150,6 +162,7 @@ const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.ground },
   body: { flex: 1, paddingHorizontal: space.m, paddingTop: space.s, paddingBottom: space.m, gap: space.s },
   stage: { flex: 1, gap: space.s },
-  controls: { gap: space.s },
+  // Extra room under the keys (8 dp more than before) so a thumb on the lowest keys is clear of the trackpad edge.
+  controls: { gap: space.s, marginBottom: space.s },
   dim: { opacity: 0.5 },
 });

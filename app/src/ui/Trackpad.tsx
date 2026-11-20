@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AccessibilityInfo, Animated, type GestureResponderEvent, type LayoutChangeEvent, StyleSheet, View } from 'react-native';
 import type { Message } from '../protocol';
-import type { PointerSettings } from '../trackpad/pointer';
+import type { AppSettings } from '../trackpad/pointer';
 import { color } from '../theme';
 import { TrackpadController } from './trackpadController';
 
@@ -10,7 +10,7 @@ const PITCH = 24;
 
 interface Props {
   send: (m: Message) => void;
-  settings: PointerSettings;
+  settings: AppSettings;
   /** Lights drop to 10% when the remote is not usable (paused or disconnected). */
   dim?: boolean;
 }
