@@ -533,4 +533,140 @@ mod tests {
         assert_eq!(pairing_code(&[0x00, 0x0F, 0x42, 0x41]), "000001");
         assert_eq!(pairing_code(&[0xFF, 0xFF, 0xFF, 0xFF]), "967295");
     }
+
+    // ---- cross-implementation vectors: generated against snow, replayed by the JS tests ----
+
+    fn hexs(b: &[u8]) -> String {
+        b.iter().map(|x| format!("{x:02x}")).collect()
+    }
+
+    fn public_of(private: &[u8; 32]) -> [u8; 32] {
+        use snow::resolvers::{CryptoResolver, DefaultResolver};
+        let mut dh = DefaultResolver
+            .resolve_dh(&snow::params::DHChoice::Curve25519)
+            .unwrap();
+        dh.set(private);
+        dh.pubkey().try_into().unwrap()
+    }
+
+    fn build_vectors() -> serde_json::Value {
+        use serde_json::json;
+        let init_static = [0x11u8; 32];
+        let resp_static = [0x22u8; 32];
+        let init_eph = [0x33u8; 32];
+        let resp_eph = [0x44u8; 32];
+        let psk = [0x55u8; 32];
+        let init_pub = public_of(&init_static);
+        let resp_pub = public_of(&resp_static);
+        let mut vectors = Vec::new();
+        for (name, is_psk) in [(SESSION_PROTOCOL, false), (PAIRING_PROTOCOL, true)] {
+            let build = |role_init: bool| {
+                let mut b = Builder::new(name.parse().unwrap())
+                    .prologue(b"pocketremote-vectors")
+                    .unwrap()
+                    .local_private_key(if role_init {
+                        &init_static
+                    } else {
+                        &resp_static
+                    })
+                    .unwrap()
+                    .fixed_ephemeral_key_for_testing_only(if role_init {
+                        &init_eph
+                    } else {
+                        &resp_eph
+                    });
+                if !is_psk {
+                    b = b
+                        .remote_public_key(if role_init { &resp_pub } else { &init_pub })
+                        .unwrap();
+                } else {
+                    b = b.psk(3, &psk).unwrap();
+                }
+                if role_init {
+                    b.build_initiator().unwrap()
+                } else {
+                    b.build_responder().unwrap()
+                }
+            };
+            let mut init = build(true);
+            let mut resp = build(false);
+            let count = if is_psk { 3 } else { 2 };
+            let mut messages = Vec::new();
+            for i in 0..count {
+                let (w, r) = if i % 2 == 0 {
+                    (&mut init, &mut resp)
+                } else {
+                    (&mut resp, &mut init)
+                };
+                let payload = format!("handshake payload {i}").into_bytes();
+                let mut buf = [0u8; 1024];
+                let n = w.write_message(&payload, &mut buf).unwrap();
+                let mut out = [0u8; 1024];
+                let m = r.read_message(&buf[..n], &mut out).unwrap();
+                assert_eq!(&out[..m], payload.as_slice());
+                messages.push(json!({"payload": hexs(&payload), "ciphertext": hexs(&buf[..n])}));
+            }
+            assert_eq!(init.get_handshake_hash(), resp.get_handshake_hash());
+            let hash = hexs(init.get_handshake_hash());
+            let mut it = Transport::with_rekey_interval(init.into_transport_mode().unwrap(), 3);
+            let mut rt = Transport::with_rekey_interval(resp.into_transport_mode().unwrap(), 3);
+            let mut transport = Vec::new();
+            for block in 0..4 {
+                let from_init = block % 2 == 0;
+                for j in 0..4 {
+                    let payload = format!("transport {block}.{j}").into_bytes();
+                    let (w, r) = if from_init {
+                        (&mut it, &mut rt)
+                    } else {
+                        (&mut rt, &mut it)
+                    };
+                    let frame = w.encrypt(&payload).unwrap();
+                    assert_eq!(r.decrypt(&frame).unwrap(), payload);
+                    transport.push(json!({
+                        "from": if from_init { "initiator" } else { "responder" },
+                        "payload": hexs(&payload),
+                        "ciphertext": hexs(&frame),
+                    }));
+                }
+            }
+            let mut v = json!({
+                "protocol_name": name,
+                "prologue": hexs(b"pocketremote-vectors"),
+                "init_static": hexs(&init_static),
+                "resp_static": hexs(&resp_static),
+                "init_ephemeral": hexs(&init_eph),
+                "resp_ephemeral": hexs(&resp_eph),
+                "handshake_hash": hash,
+                "messages": messages,
+                "rekey_interval": 3,
+                "transport": transport,
+            });
+            if is_psk {
+                v["psk"] = json!(hexs(&psk));
+            }
+            vectors.push(v);
+        }
+        json!({
+            "source": "generated by the test generated_vectors_are_up_to_date in desktop/src/noise.rs against snow; regenerate with UPDATE_NOISE_VECTORS=1 cargo test noise",
+            "vectors": vectors,
+        })
+    }
+
+    #[test]
+    fn generated_vectors_are_up_to_date() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("protocol/noise-vectors.json");
+        let want = serde_json::to_string_pretty(&build_vectors()).unwrap() + "\n";
+        if std::env::var_os("UPDATE_NOISE_VECTORS").is_some() {
+            std::fs::write(&path, &want).unwrap();
+            return;
+        }
+        let have = std::fs::read_to_string(&path).unwrap_or_default();
+        assert_eq!(
+            have, want,
+            "protocol/noise-vectors.json is stale: UPDATE_NOISE_VECTORS=1 cargo test noise"
+        );
+    }
 }
