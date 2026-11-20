@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 fn main() {
-    println!("Hello, world!");
+    println!("pocketremote {}", env!("CARGO_PKG_VERSION"));
 }
