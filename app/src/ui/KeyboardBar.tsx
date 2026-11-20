@@ -95,7 +95,9 @@ export function KeyboardBar({ send, onTyping }: Props) {
       />
       {focused ? (
         <Pressable accessibilityRole="button" accessibilityLabel="Hide keyboard" onPress={() => Keyboard.dismiss()} hitSlop={6} style={s.hide}>
-          <MaterialCommunityIcons name="chevron-down" size={22} color={color.textMuted} />
+          <View style={s.hideDot}>
+            <MaterialCommunityIcons name="keyboard-close-outline" size={18} color={color.text} />
+          </View>
         </Pressable>
       ) : null}
       </View>
@@ -125,9 +127,11 @@ const s = StyleSheet.create({
   fieldWrap: { flex: 1 },
   // One line when idle; a fixed four-line height while typing (it scrolls inside), so it never resizes as you type.
   field: { height: H, borderRadius: 24, paddingLeft: space.m, paddingRight: space.m, paddingVertical: 12, backgroundColor: color.surface, borderWidth: 1, borderColor: color.rim, textAlignVertical: 'center', ...t.body },
-  fieldOpen: { height: 104, paddingRight: 44, textAlignVertical: 'top' },
+  fieldOpen: { height: 104, paddingRight: 52, textAlignVertical: 'top' },
   fieldLive: { borderColor: color.amber },
-  hide: { position: 'absolute', right: 6, top: 4, width: 36, height: 40, alignItems: 'center', justifyContent: 'center' },
+  hide: { position: 'absolute', right: 8, top: 8, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  // A clear filled circle: the app's own way out of typing, so the Back key is never needed.
+  hideDot: { width: 32, height: 32, borderRadius: 16, backgroundColor: color.surfacePressed, borderWidth: 1, borderColor: color.rimStrong, alignItems: 'center', justifyContent: 'center' },
   round: { width: H, height: H, borderRadius: H / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: color.surface, borderWidth: 1, borderColor: color.rim },
   liveOn: { borderColor: color.amber },
   sendReady: { backgroundColor: color.amber, borderColor: 'rgba(255,255,255,0.18)' },
