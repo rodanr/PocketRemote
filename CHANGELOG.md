@@ -5,6 +5,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/). The project is pre-rele
 ## [Unreleased]
 
 ### Added
+- Release workflow (`.github/workflows/release.yml`): a version tag builds the Mac dmg and Android APK and drafts a GitHub release.
+- Mac panel self-screenshot tour for review and README images.
 - Apache-2.0 license (`LICENSE`, `NOTICE`).
 - Mac menu-bar app and Control Panel (feature `gui`): tray with waiting / paused / controlled states, pairing QR with countdown, approve with matching code, network trust prompt, Accessibility step, Disconnect, Remove phone, Allow phone control switch, Open at login, connect notification, single-instance lock.
 - `scripts/build-android.sh`: sideloadable release APK (package `com.pocketremote.app`), verified to install and launch standalone on the emulator.
@@ -19,6 +21,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/). The project is pre-rele
 - Phone and panel wording says "computer" instead of "Mac".
 
 ### Fixed
+- Pairing QR was drawn inverted (light on dark) in dark mode, which some scanners cannot read; it is now always black on white.
 - Endless Keychain prompts (the host now reads each secret once).
 - Feeling locked out after a stale pairing: two failed handshakes now offer "Scan again"; pressing Reconnect no longer hides it; the dialog no longer flashes during retries.
 - Pairing refusals now say why.

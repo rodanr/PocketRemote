@@ -5,6 +5,7 @@
 
 mod engine;
 mod login;
+mod shot;
 mod tray;
 
 use engine::Engine;
@@ -14,6 +15,7 @@ use iced::{
 };
 use pocketremote::net::NetworkId;
 use pocketremote::server::ServerEvent;
+use std::ops::Not;
 use std::time::{Duration, Instant};
 use tray::{Action, Look, Tray};
 
@@ -154,6 +156,7 @@ struct App {
     confirm_revoke: bool,
     at_login: bool,
     dark: bool,
+    shots: Option<shot::Plan>,
     notice: Option<String>,
 }
 
@@ -175,6 +178,7 @@ enum Msg {
     OpenAccessibility,
     ToggleLogin,
     SystemTheme(iced::theme::Mode),
+    Shot(&'static str, window::Screenshot),
     Quit,
 }
 
@@ -191,7 +195,10 @@ fn boot() -> (App, Task<Msg>) {
         approval: None,
         confirm_revoke: false,
         at_login: login::enabled(),
-        dark: true,
+        dark: std::env::var("POCKETREMOTE_THEME")
+            .is_ok_and(|t| t == "light")
+            .not(),
+        shots: shot::Plan::from_env(),
         notice: None,
     };
     // The tray must be created on the main thread after the event loop has started.
@@ -283,6 +290,49 @@ impl App {
     }
 }
 
+/// The scripted tour behind POCKETREMOTE_SHOTS: network question (if any), overview, pairing QR.
+fn shot_tour(app: &mut App) -> Option<Task<Msg>> {
+    let id = app.win?;
+    let running = matches!(app.phase, Phase::Running(_));
+    let (due, step) = app.shots.as_ref().map(|p| (p.due, p.step))?;
+    if !running || Instant::now() < due {
+        return None;
+    }
+    let shoot = |name: &'static str| window::screenshot(id).map(move |s| Msg::Shot(name, s));
+    let plan = app.shots.as_mut()?;
+    match step {
+        0 => {
+            plan.step = 1;
+            plan.wait(1.0);
+            if app.untrusted.is_some() {
+                Some(shoot("network"))
+            } else {
+                Some(Task::none())
+            }
+        }
+        1 => {
+            plan.step = 2;
+            plan.wait(1.5);
+            Some(update(app, Msg::AllowNetwork))
+        }
+        2 => {
+            plan.step = 3;
+            plan.wait(1.0);
+            Some(shoot("overview"))
+        }
+        3 => {
+            plan.step = 4;
+            plan.wait(2.0);
+            Some(update(app, Msg::Pair))
+        }
+        4 => {
+            plan.step = 5;
+            Some(shoot("pairing"))
+        }
+        _ => None,
+    }
+}
+
 fn update(app: &mut App, msg: Msg) -> Task<Msg> {
     match msg {
         Msg::Init => {
@@ -298,6 +348,9 @@ fn update(app: &mut App, msg: Msg) -> Task<Msg> {
         }
         Msg::Tick => {
             app.refresh();
+            if let Some(task) = shot_tour(app) {
+                return task;
+            }
             let actions = app.tray.as_ref().map(Tray::poll).unwrap_or_default();
             let tasks: Vec<_> = actions
                 .into_iter()
@@ -438,7 +491,25 @@ fn update(app: &mut App, msg: Msg) -> Task<Msg> {
             Ok(()) => app.at_login = login::enabled(),
             Err(_) => app.notice = Some("Could not change the launch-at-login setting.".into()),
         },
-        Msg::SystemTheme(mode) => app.dark = !matches!(mode, iced::theme::Mode::Light),
+        Msg::SystemTheme(mode) => {
+            // A scripted screenshot run forces its own theme.
+            if std::env::var_os("POCKETREMOTE_THEME").is_none() {
+                app.dark = !matches!(mode, iced::theme::Mode::Light);
+            }
+        }
+        Msg::Shot(name, screenshot) => {
+            if let Some(plan) = &app.shots {
+                shot::save(
+                    &plan.dir,
+                    &format!("mac-panel-{name}-{}", plan.theme),
+                    screenshot.size,
+                    &screenshot.rgba,
+                );
+            }
+            if name == "pairing" {
+                return iced::exit();
+            }
+        }
         Msg::Quit => return iced::exit(),
     }
     app.refresh();
@@ -781,17 +852,24 @@ fn running<'a>(app: &'a App, p: Pal, s: &'a engine::Started) -> Element<'a, Msg>
                 heading(p, "Scan with your phone"),
                 body(p, "Open PocketRemote and scan. Same Wi-Fi."),
                 // The QR plate is always white so every scanner can read it, in light or dark.
-                container(qr_code(&pairing.qr).total_size(210.0))
-                    .padding(12)
-                    .center_x(Length::Fill)
-                    .style(|_| container::Style {
-                        background: Some(Background::Color(Color::WHITE)),
-                        border: Border {
-                            radius: 10.0.into(),
-                            ..Border::default()
-                        },
-                        ..container::Style::default()
-                    }),
+                container(
+                    qr_code(&pairing.qr)
+                        .total_size(210.0)
+                        .style(|_| qr_code::Style {
+                            cell: Color::BLACK,
+                            background: Color::WHITE,
+                        })
+                )
+                .padding(12)
+                .center_x(Length::Fill)
+                .style(|_| container::Style {
+                    background: Some(Background::Color(Color::WHITE)),
+                    border: Border {
+                        radius: 10.0.into(),
+                        ..Border::default()
+                    },
+                    ..container::Style::default()
+                }),
                 iced::widget::progress_bar(0.0..=total, left.min(total))
                     .girth(4)
                     .style(move |_| iced::widget::progress_bar::Style {

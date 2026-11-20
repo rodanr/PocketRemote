@@ -44,6 +44,18 @@ adb exec-out screencap -p > shot.png ; adb shell settings put system font_scale 
 
 The terminal host in `--dry-run` never moves the pointer. Use the dev-only paste-link field on the phone's pairing screen with the `DEV-URI` it prints.
 
+## Mac panel screenshots without a person
+
+The host app can photograph its own window (no screen-recording permission needed), so agents and CI-free setups can review the Control Panel and regenerate README images:
+
+```sh
+cd desktop && cargo build --features gui --bin pocketremote-host
+HOME=/tmp/scratch POCKETREMOTE_DRY_RUN=1 POCKETREMOTE_FILE_KEYS=1 \
+  POCKETREMOTE_SHOTS=/tmp/shots POCKETREMOTE_THEME=dark ./target/debug/pocketremote-host   # or light
+```
+
+It walks the network question, the overview and the pairing QR, writes `mac-panel-<state>-<theme>.png` into the folder, and exits. If a frame ever misses a line of text, run it again (the first frame can race).
+
 ## Packaging
 
 ```sh

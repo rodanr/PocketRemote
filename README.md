@@ -12,6 +12,14 @@ Free, no account, no cloud. Every session is end-to-end encrypted and approved o
 <img src="docs/design/screens/phone-07-browser-page.png" width="260" alt="Browser and slides page" />
 <img src="docs/design/screens/phone-08-settings-page.png" width="260" alt="Settings page" />
 
+<br/>
+
+<img src="docs/design/screens/mac-panel-overview-dark.png" width="250" alt="Mac Control Panel, dark" />
+<img src="docs/design/screens/mac-panel-pairing-dark.png" width="250" alt="Pairing QR, dark" />
+<img src="docs/design/screens/mac-panel-overview-light.png" width="250" alt="Mac Control Panel, light" />
+
+<sub>Top: the phone app. Bottom: the Mac Control Panel (follows the system light/dark setting).</sub>
+
 </div>
 
 ## What it does

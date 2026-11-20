@@ -51,7 +51,7 @@ cd app && npx tsc --noEmit && npx eslint . && npx jest && npm run test:interop
 - Work directly on `main` in this project (owner's choice); commit small and often with clear messages. Do not open PRs unless asked.
 - UI: follow `docs/design-brief.md`. Amber is only for the lead action and live state; one key radius; icons-only main page; keys must have a visible edge (about 3:1). Wording says "computer", never "Mac", in the phone app.
 - Owner rule for features: only simple, reliable ones. No redundant controls. Skip anything risky, confusing or hacky.
-- Verify visually: boot the Android emulator and use an isolated dry-run host (recipe in `docs/DEVELOPMENT.md`). Do not disturb the owner's real session or send real input while testing.
+- Verify visually: boot the Android emulator and use an isolated dry-run host (recipe in `docs/DEVELOPMENT.md`). Do not disturb the owner's real session or send real input while testing. The Mac Control Panel can photograph itself (`POCKETREMOTE_SHOTS`, see `docs/DEVELOPMENT.md`); use that to check it in light and dark.
 - Read tool output before taking screenshots (compile errors look like a broken UI).
 
 ## Useful environment switches (development only)
