@@ -120,19 +120,28 @@ describe('RemoteConnection', () => {
     expect(r.conn.send({ type: 'key', key: 'up' })).toBe(false);
     const s = r.connectUp();
     expect(r.conn.send({ type: 'key', key: 'up' })).toBe(true);
-    expect(s.hear(1)).toEqual({ type: 'key', key: 'up' });
+    expect(s.hear(1)).toMatchObject({ type: 'ping' }); // sent right after the handshake
+    expect(s.hear(2)).toEqual({ type: 'key', key: 'up' });
     s.drop();
     expect(r.conn.send({ type: 'key', key: 'up' })).toBe(false);
+  });
+
+  test('sends a ping right after the handshake so the host counts the phone as connected', () => {
+    const r = rig();
+    const s = r.connectUp();
+    expect(s.sent.length).toBe(2); // handshake, then the first ping
+    expect(s.hear(1)).toMatchObject({ type: 'ping' });
   });
 
   test('pings every 5 seconds', () => {
     const r = rig();
     const s = r.connectUp();
-    r.advance(5000);
-    expect(s.hear(1)).toMatchObject({ type: 'ping' });
-    s.say({ type: 'pong', t: 1 });
+    expect(s.hear(1)).toMatchObject({ type: 'ping' }); // the one sent right after the handshake
     r.advance(5000);
     expect(s.hear(2)).toMatchObject({ type: 'ping' });
+    s.say({ type: 'pong', t: 1 });
+    r.advance(5000);
+    expect(s.hear(3)).toMatchObject({ type: 'ping' });
   });
 
   test('a silent network is noticed after 15 s and the connection is retried', () => {

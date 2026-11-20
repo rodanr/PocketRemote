@@ -31,7 +31,18 @@ Partly met or not met (to record as decisions or follow-ups):
 | Keychain / 0600 fallback | Partly | No file fallback on Windows (documented). |
 | QR scheme name | Doc drift | The scheme is `pocketremote`; `PLAN.md` section 3.4 still says `couchremote`. |
 
-## Findings
+## Fixes applied after the review (for the owner's review)
+
+Only `desktop/src/server.rs` changed among the security-sensitive files (plus tests); `pairing.rs`, `noise.rs`, `keystore.rs`, `net.rs`, `app/src/noise/` and `app/src/session.ts` are untouched. Each fix has a test that fails if the bug is put back (checked by reintroducing it).
+
+| Finding | Status | What changed |
+|---|---|---|
+| F1 replayed first message | **Fixed** | A session now becomes the live session (and replaces the old one, and reports "connected") only after the phone sends its first valid encrypted message (`activate_session`, called from `session_loop`). A pause that happened since the handshake still applies. The phone sends a ping right after the handshake (`app/src/connection.ts`, not a flagged file). Test: `a_replayed_first_message_does_not_end_the_real_session`. |
+| F2 pairing window jam | **Fixed** | A small drop guard (`AttemptGuard`) records and releases a pairing attempt if its future is dropped, for example when the handshake timeout fires. It also now counts as one of the 3 failures. Test: `a_silent_pairing_attempt_does_not_jam_the_window`. |
+| F5 revoke can fail without disconnecting | **Fixed** | `revoke_phone` and `reset_pairing` now close the active session even if the key store call fails, and still return the error. Test: `revoke_closes_the_session_even_if_the_key_store_fails`. |
+| F3, F4, F6 | Open (low) | Accepted for 1.0; tracked here. |
+
+## Findings (as reported)
 
 **High:** none found.
 
@@ -53,4 +64,4 @@ Constant-time behaviour of the `@noble` libraries under Hermes; whether `x25519.
 
 ## Sign-off advice
 
-The cryptographic core looks sound: both sides use the specified Noise patterns, test vectors exist for both, the phone pins the host key, nothing is stored without Approve and the limits match the spec. Nothing found lets an attacker control the computer. The owner can reasonably sign off once the tests are confirmed green (CI is) and **F1 and F2 are fixed or explicitly accepted**. Both are cheap to fix.
+The cryptographic core looks sound: both sides use the specified Noise patterns, test vectors exist for both, the phone pins the host key, nothing is stored without Approve and the limits match the spec. Nothing found lets an attacker control the computer. The owner can reasonably sign off. F1, F2 and F5 are now fixed and tested; F3, F4 and F6 are low and accepted for 1.0.

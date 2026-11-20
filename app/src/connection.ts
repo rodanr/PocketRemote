@@ -176,6 +176,8 @@ export class RemoteConnection {
       this.lastRx = this.deps.timers.now();
       this.handshakeFailures = 0;
       this.set({ phase: 'connected', reason: undefined, attempt: 0, needsRescan: false });
+      // The host counts a phone as connected after its first valid encrypted message, so send one now.
+      this.send({ type: 'ping', t: this.deps.timers.now() });
       this.schedulePing(gen);
     } else if (e.kind === 'message') {
       const m = e.message;
