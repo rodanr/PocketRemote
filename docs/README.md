@@ -7,6 +7,7 @@
 | [INSTALL.md](INSTALL.md) | You are installing a built copy on a Mac and an Android phone |
 | [security.md](security.md) | You need the threat model and per-OS security notes |
 | [design-brief.md](design-brief.md) | You are changing any UI (palette, keys, pages, copy) |
+| [RELEASE.md](RELEASE.md) | You are preparing or checking a release |
 | [DECISIONS.md](DECISIONS.md) | You wonder why something is the way it is |
 | [spike-report.md](spike-report.md) | You want the Phase 0 measurements and findings |
 | [design/screens/](design/screens/) | You want current screenshots |
