@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 
 pub mod keystore;
+pub mod net;
 pub mod noise;
 pub mod pairing;
 pub mod paths;
