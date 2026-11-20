@@ -165,6 +165,40 @@ describe('RemoteConnection', () => {
     expect(r.conn.getState()).toMatchObject({ needsRescan: true, attempt: 6 });
   });
 
+  test('reaching the host but failing the handshake twice offers Scan again at once', () => {
+    const r = rig();
+    r.conn.start();
+    r.sockets[0].open();
+    r.sockets[0].drop(); // handshake never completed
+    expect(r.conn.getState().needsRescan).toBe(false);
+    r.advance(250);
+    r.sockets[1].open();
+    r.sockets[1].drop();
+    expect(r.conn.getState()).toMatchObject({ reason: 'rejected', needsRescan: true });
+  });
+
+  test('an unreachable host is not mistaken for a stale pairing', () => {
+    const r = rig();
+    r.conn.start();
+    r.sockets[0].drop(); // never opened
+    r.advance(250);
+    r.sockets[1].drop();
+    expect(r.conn.getState()).toMatchObject({ reason: 'unreachable', needsRescan: false });
+  });
+
+  test('pressing Reconnect does not hide Scan again while the pairing is broken', () => {
+    const r = rig();
+    r.conn.start();
+    for (let i = 0; i < 2; i++) {
+      r.sockets.at(-1)!.open();
+      r.sockets.at(-1)!.drop();
+      r.advance(250);
+    }
+    expect(r.conn.getState().needsRescan).toBe(true);
+    r.conn.reconnectNow();
+    expect(r.conn.getState().needsRescan).toBe(true);
+  });
+
   test('a good connection resets the backoff', () => {
     const r = rig();
     r.conn.start();

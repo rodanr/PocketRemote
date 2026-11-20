@@ -36,7 +36,8 @@ export interface Credentials {
 
 export type Phase = 'connecting' | 'connected' | 'waiting' | 'stopped';
 /** Why we are not connected, in words the UI can show. */
-export type Reason = 'unreachable' | 'lost' | ErrorCode;
+/** `rejected`: we reached the computer but could not complete the secure handshake, so the pairing is no longer valid. */
+export type Reason = 'unreachable' | 'lost' | 'rejected' | ErrorCode;
 
 export interface HostStatus {
   platform: Platform;
@@ -59,6 +60,8 @@ export const BACKOFF_START_MS = 250;
 export const BACKOFF_MAX_MS = 5000;
 export const SILENCE_LIMIT_MS = 15000;
 export const RESCAN_AFTER_ATTEMPTS = 6;
+/** Reaching the host but failing the handshake this many times in a row means the pairing is stale: retrying cannot help. */
+export const REJECTED_AFTER = 2;
 
 export function backoffDelay(attempt: number): number {
   return Math.min(BACKOFF_START_MS * 2 ** attempt, BACKOFF_MAX_MS);
@@ -75,6 +78,8 @@ export class RemoteConnection {
   private hostError: ErrorCode | null = null;
   private stopped = true;
   private generation = 0;
+  private opened = false;
+  private handshakeFailures = 0;
 
   constructor(
     private readonly deps: ConnectionDeps,
@@ -93,6 +98,7 @@ export class RemoteConnection {
   start(): void {
     this.stopped = false;
     this.state = { ...this.state, attempt: 0, needsRescan: false };
+    this.handshakeFailures = 0;
     this.connect();
   }
 
@@ -101,7 +107,9 @@ export class RemoteConnection {
     if (this.state.phase === 'connected' || this.state.phase === 'connecting') return;
     this.stopped = false;
     this.clearRetry();
-    this.state = { ...this.state, attempt: 0, needsRescan: false };
+    // Keep needsRescan: pressing Reconnect must not hide "Scan again" while the pairing is still broken.
+    // Only a successful connection clears it.
+    this.state = { ...this.state, attempt: 0 };
     this.connect();
   }
 
@@ -127,6 +135,7 @@ export class RemoteConnection {
     this.teardown();
     const gen = ++this.generation;
     this.hostError = null;
+    this.opened = false;
     this.set({ phase: 'connecting', reason: undefined });
     let socket: SocketLike;
     try {
@@ -145,7 +154,11 @@ export class RemoteConnection {
       onEvent: (e) => this.onSessionEvent(gen, e),
     });
     this.session = session;
-    socket.onopen = () => gen === this.generation && session.start();
+    socket.onopen = () => {
+      if (gen !== this.generation) return;
+      this.opened = true;
+      session.start();
+    };
     socket.onmessage = (ev) => {
       if (gen !== this.generation) return;
       this.lastRx = this.deps.timers.now();
@@ -161,6 +174,7 @@ export class RemoteConnection {
     if (gen !== this.generation) return;
     if (e.kind === 'ready') {
       this.lastRx = this.deps.timers.now();
+      this.handshakeFailures = 0;
       this.set({ phase: 'connected', reason: undefined, attempt: 0, needsRescan: false });
       this.schedulePing(gen);
     } else if (e.kind === 'message') {
@@ -204,6 +218,11 @@ export class RemoteConnection {
       this.set({ phase: 'stopped', reason: code });
     } else if (code === 'paused' || code === 'rate_limited') {
       this.set({ phase: 'waiting', reason: code });
+      this.retryAfter(BACKOFF_MAX_MS);
+    } else if (!wasConnected && this.opened && ++this.handshakeFailures >= REJECTED_AFTER) {
+      // The host answered but the secure handshake never completed (for example its keys changed).
+      // Retrying cannot fix that, so offer to scan again right away; keep trying slowly in the background.
+      this.set({ phase: 'waiting', reason: 'rejected', attempt: this.state.attempt + 1, needsRescan: true });
       this.retryAfter(BACKOFF_MAX_MS);
     } else {
       const attempt = wasConnected ? 0 : this.state.attempt + 1;

@@ -13,6 +13,7 @@ export function describe(state: ConnState): { word: string; kind: 'ok' | 'busy' 
   const why: Record<Reason, { word: string; kind: 'paused' | 'down'; hint: string }> = {
     unreachable: { word: "Can't reach your computer", kind: 'down', hint: 'Is it awake and on the same Wi-Fi?' },
     lost: { word: 'Connection lost', kind: 'down', hint: 'Trying again…' },
+    rejected: { word: 'Not paired with this computer', kind: 'down', hint: 'Its keys changed or this phone was removed. Scan the code again.' },
     paused: { word: 'Paused', kind: 'paused', hint: 'Resume it from the computer' },
     rate_limited: { word: 'Slow down', kind: 'down', hint: 'Too many commands at once' },
     revoked: { word: 'Phone removed', kind: 'down', hint: 'Pair again to continue' },
