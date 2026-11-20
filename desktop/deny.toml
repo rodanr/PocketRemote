@@ -13,7 +13,7 @@ yanked = "deny"
 
 [licenses]
 version = 2
-# Our own crate is unpublished and has no license yet (project license still to be chosen).
+# Our own crate is unpublished; it is Apache-2.0 (see LICENSE).
 private = { ignore = true }
 allow = [
     "MIT",

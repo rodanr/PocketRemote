@@ -1,0 +1,16 @@
+PocketRemote
+Copyright 2026 The PocketRemote authors
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+"PocketRemote" and the Pocket P logo are the project's names and marks. The Apache-2.0 license does
+not grant permission to use them (section 6); forks should choose their own name and icon.
+
+Third-party material bundled with this project:
+
+- Manrope typeface, copyright 2018 The Manrope Project Authors (https://github.com/googlefonts/manrope),
+  SIL Open Font License 1.1. Files: desktop/assets/fonts/ (license text in OFL.txt) and, on the phone,
+  the @expo-google-fonts/manrope package.
+- Open-source libraries pulled in by Cargo and npm keep their own licenses. `cargo deny check` enforces
+  the allowed list in desktop/deny.toml (MIT, Apache-2.0, BSD-2/3, ISC, Unicode-3.0, Zlib, CC0, BSL-1.0,
+  Apache-2.0 WITH LLVM-exception, and MPL-2.0 for option-ext only).

@@ -20,4 +20,4 @@ Short records of choices that are not obvious from the code. Newest last. Format
 16. **Nothing paid.** The Mac app is ad-hoc signed and not notarized; users approve it once. SignPath (free OSS signing for Windows) is an open question for the owner.
 17. **No pause hotkey** (owner, 2026-11-20). Pause is already one click in the tray and a switch in the Control Panel; skipping `global-hotkey` also avoids a dependency and OS key clashes. Recorded in `PLAN.md` section 3.10.
 18. **Dependabot skips Expo-pinned majors** (owner, 2026-11-20). `react`/`react-native` stay on the Expo SDK's pinned versions (a mismatched renderer breaks the app); majors of `typescript`, `eslint` and `@types/node` wait for Expo tooling and the Node version in use. PRs #1-#4 were closed for this reason. Minor and patch updates still arrive.
-19. **License: decide later** (owner). The repository stays unlicensed (all rights reserved) until the owner chooses.
+19. **License: Apache-2.0** (owner, 2026-11-20). Permissive with a patent grant and a trademark clause; matches the MIT/Apache/BSD dependencies. The name and logo are not licensed for reuse (see `NOTICE`).

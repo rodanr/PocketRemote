@@ -5,6 +5,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/). The project is pre-rele
 ## [Unreleased]
 
 ### Added
+- Apache-2.0 license (`LICENSE`, `NOTICE`).
 - Mac menu-bar app and Control Panel (feature `gui`): tray with waiting / paused / controlled states, pairing QR with countdown, approve with matching code, network trust prompt, Accessibility step, Disconnect, Remove phone, Allow phone control switch, Open at login, connect notification, single-instance lock.
 - `scripts/build-android.sh`: sideloadable release APK (package `com.pocketremote.app`), verified to install and launch standalone on the emulator.
 - `scripts/build-macos.sh`: builds `PocketRemote.app` (menu-bar only, ad-hoc signed) and a `.dmg`.

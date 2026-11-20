@@ -6,7 +6,7 @@
 Free, no account, no cloud. Every session is end-to-end encrypted and approved on the computer.
 
 [![CI](https://github.com/rodanr/PocketRemote/actions/workflows/ci.yml/badge.svg)](https://github.com/rodanr/PocketRemote/actions/workflows/ci.yml)
-`status: pre-release (0.1)` · `platforms: Android phone, macOS host (Windows/Linux planned)`
+`license: Apache-2.0` · `status: pre-release (0.1)` · `platforms: Android phone, macOS host (Windows/Linux planned)`
 
 <img src="docs/design/screens/phone-03-remote.png" width="260" alt="Remote page" />
 <img src="docs/design/screens/phone-07-browser-page.png" width="260" alt="Browser and slides page" />
@@ -70,4 +70,4 @@ AI agents: read [AGENTS.md](AGENTS.md) first.
 
 ## License
 
-Not chosen yet (the repository is private while the project is prepared for release).
+[Apache-2.0](LICENSE). Third-party material (the Manrope typeface and others) is listed in [NOTICE](NOTICE). The name "PocketRemote" and the logo are not licensed for reuse.

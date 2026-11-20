@@ -17,7 +17,6 @@ Applies to every release; `v1.0.0` is the first. The owner decides when to tag (
 
 ## Open owner decisions before a public release
 
-- Project **license** (currently unlicensed; the README says so).
 - **Trademark** check on "PocketRemote".
 - Owner **review of the security-sensitive files** (`noise.rs`, `pairing.rs`, `keystore.rs`, `net.rs`, `server.rs`, `app/src/noise/**`, `app/src/session.ts`).
 - Whether to apply to SignPath (free OSS signing for Windows) when a Windows build ships.
