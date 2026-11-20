@@ -15,6 +15,13 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use zeroize::Zeroizing;
 
+/// Names and counts only, never values. Set POCKETREMOTE_DEBUG=1 to see which secrets are touched.
+fn debug(what: &str) {
+    if std::env::var_os("POCKETREMOTE_DEBUG").is_some() {
+        eprintln!("[keystore] {what}");
+    }
+}
+
 /// Reads each secret from the OS key store once and then serves it from memory (zeroized on drop).
 /// Without this the server would read the Keychain on every phone connection attempt, and a phone
 /// that retries every few seconds would make macOS ask for permission over and over.
@@ -43,6 +50,7 @@ impl SecretStore for CachedStore {
         if let Some(hit) = cache.get(name) {
             return Ok(hit.as_ref().map(|v| Zeroizing::new((**v).clone())));
         }
+        debug(&format!("read {name} from the OS store"));
         let value = self.inner.get(name)?;
         cache.insert(
             name.to_owned(),
@@ -51,6 +59,7 @@ impl SecretStore for CachedStore {
         Ok(value)
     }
     fn set(&self, name: &str, value: &[u8]) -> StoreResult<()> {
+        debug(&format!("write {name} to the OS store"));
         self.inner.set(name, value)?;
         let mut cache = self
             .cache
@@ -60,6 +69,7 @@ impl SecretStore for CachedStore {
         Ok(())
     }
     fn delete(&self, name: &str) -> StoreResult<()> {
+        debug(&format!("delete {name} from the OS store"));
         self.inner.delete(name)?;
         let mut cache = self
             .cache
@@ -150,6 +160,7 @@ fn backend() -> Result<Box<dyn pocketremote::input::InputBackend>, StartError> {
 }
 
 async fn start() -> Result<(Started, mpsc::UnboundedReceiver<ServerEvent>), StartError> {
+    debug("starting the server");
     let Some(ip) = net::default_route_ip().filter(|ip| net::ip_allowed(*ip)) else {
         return Err(StartError::Failed(
             "No private network found. Connect to your home Wi-Fi.".into(),
