@@ -111,7 +111,7 @@ pub struct Transport {
 }
 
 impl Transport {
-    fn new(inner: TransportState) -> Self {
+    pub(crate) fn new(inner: TransportState) -> Self {
         Self::with_rekey_interval(inner, REKEY_INTERVAL)
     }
 
