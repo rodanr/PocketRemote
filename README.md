@@ -6,7 +6,7 @@
 Free, no account, no cloud. Every session is end-to-end encrypted and approved on the computer.
 
 [![CI](https://github.com/rodanr/PocketRemote/actions/workflows/ci.yml/badge.svg)](https://github.com/rodanr/PocketRemote/actions/workflows/ci.yml)
-`license: Apache-2.0` · `version: 1.0.1` · `platforms: Android phone, macOS host (Windows/Linux planned)`
+`license: Apache-2.0` · `version: 1.0.2` · `platforms: Android phone, macOS host (Windows/Linux planned)`
 
 <img src="docs/design/screens/phone-03-remote.png" width="260" alt="Remote page" />
 <img src="docs/design/screens/phone-07-browser-page.png" width="260" alt="Browser and slides page" />

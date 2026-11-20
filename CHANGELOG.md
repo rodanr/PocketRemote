@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Releases follow semanti
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-11-21
+
 ### Added
 - Settings: a **Vibration** switch, a **Keep screen on** switch and a **Scroll speed** stepper.
 
