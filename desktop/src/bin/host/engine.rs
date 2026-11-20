@@ -13,6 +13,62 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
+use zeroize::Zeroizing;
+
+/// Reads each secret from the OS key store once and then serves it from memory (zeroized on drop).
+/// Without this the server would read the Keychain on every phone connection attempt, and a phone
+/// that retries every few seconds would make macOS ask for permission over and over.
+struct CachedStore {
+    inner: Box<dyn SecretStore>,
+    cache: std::sync::Mutex<std::collections::HashMap<String, Option<Zeroizing<Vec<u8>>>>>,
+}
+
+impl CachedStore {
+    fn new(inner: Box<dyn SecretStore>) -> Self {
+        Self {
+            inner,
+            cache: std::sync::Mutex::default(),
+        }
+    }
+}
+
+type StoreResult<T> = Result<T, pocketremote::keystore::KeystoreError>;
+
+impl SecretStore for CachedStore {
+    fn get(&self, name: &str) -> StoreResult<Option<Zeroizing<Vec<u8>>>> {
+        let mut cache = self
+            .cache
+            .lock()
+            .map_err(|_| pocketremote::keystore::KeystoreError::Failed)?;
+        if let Some(hit) = cache.get(name) {
+            return Ok(hit.as_ref().map(|v| Zeroizing::new((**v).clone())));
+        }
+        let value = self.inner.get(name)?;
+        cache.insert(
+            name.to_owned(),
+            value.as_ref().map(|v| Zeroizing::new((**v).clone())),
+        );
+        Ok(value)
+    }
+    fn set(&self, name: &str, value: &[u8]) -> StoreResult<()> {
+        self.inner.set(name, value)?;
+        let mut cache = self
+            .cache
+            .lock()
+            .map_err(|_| pocketremote::keystore::KeystoreError::Failed)?;
+        cache.insert(name.to_owned(), Some(Zeroizing::new(value.to_vec())));
+        Ok(())
+    }
+    fn delete(&self, name: &str) -> StoreResult<()> {
+        self.inner.delete(name)?;
+        let mut cache = self
+            .cache
+            .lock()
+            .map_err(|_| pocketremote::keystore::KeystoreError::Failed)?;
+        cache.insert(name.to_owned(), None);
+        Ok(())
+    }
+}
 
 #[derive(Clone)]
 pub struct Started {
@@ -125,9 +181,15 @@ async fn start() -> Result<(Started, mpsc::UnboundedReceiver<ServerEvent>), Star
     let host_name = computer_name();
     let cfg = ServerConfig::new(ip, host_name.clone(), platform());
     let (tx, rx) = mpsc::unbounded_channel();
-    let server = Server::start(cfg, Keystore::new(store), executor, tx, untrusted.is_some())
-        .await
-        .map_err(|e| StartError::Failed(format!("Could not start the server: {e:?}")))?;
+    let server = Server::start(
+        cfg,
+        Keystore::new(Box::new(CachedStore::new(store))),
+        executor,
+        tx,
+        untrusted.is_some(),
+    )
+    .await
+    .map_err(|e| StartError::Failed(format!("Could not start the server: {e:?}")))?;
     let addr = server.local_addr();
     Ok((
         Started {
@@ -174,4 +236,46 @@ pub fn trust_network(id: NetworkId) {
     };
     let mut trust = TrustStore::load(&path);
     let _ = trust.trust(id);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    struct Counting(Arc<AtomicUsize>, pocketremote::keystore::MemoryStore);
+    impl SecretStore for Counting {
+        fn get(&self, n: &str) -> StoreResult<Option<Zeroizing<Vec<u8>>>> {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            self.1.get(n)
+        }
+        fn set(&self, n: &str, v: &[u8]) -> StoreResult<()> {
+            self.1.set(n, v)
+        }
+        fn delete(&self, n: &str) -> StoreResult<()> {
+            self.1.delete(n)
+        }
+    }
+
+    #[test]
+    fn reads_the_os_store_only_once_per_secret() {
+        let reads = Arc::new(AtomicUsize::new(0));
+        let store = CachedStore::new(Box::new(Counting(reads.clone(), Default::default())));
+        store.set("k", b"secret").unwrap();
+        for _ in 0..10 {
+            assert_eq!(
+                store.get("k").unwrap().as_deref().map(Vec::as_slice),
+                Some(&b"secret"[..])
+            );
+        }
+        assert!(store.get("missing").unwrap().is_none());
+        assert!(store.get("missing").unwrap().is_none());
+        assert_eq!(
+            reads.load(Ordering::SeqCst),
+            1,
+            "only the first read of a missing key reaches the OS store"
+        );
+        store.delete("k").unwrap();
+        assert!(store.get("k").unwrap().is_none());
+    }
 }

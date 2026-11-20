@@ -34,6 +34,8 @@ jobs:
       # The menu-bar host app (feature gui) is built on macOS only for now; Windows and Linux come later.
       - if: runner.os == 'macOS'
         run: cargo clippy --features gui --all-targets --locked -- -D warnings
+      - if: runner.os == 'macOS'
+        run: cargo test --features gui --locked
 
   deny:
     name: cargo-deny
