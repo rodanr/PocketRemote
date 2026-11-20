@@ -1,0 +1,8 @@
+name: Feature request
+description: Suggest a simple, reliable improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes: { label: What do you need to do and why, description: "Remember the rule: no redundant controls, nothing risky or hacky" }
+    validations: { required: true }

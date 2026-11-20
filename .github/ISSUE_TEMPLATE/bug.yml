@@ -1,0 +1,14 @@
+name: Bug report
+description: Something does not work as expected (not a security issue; see SECURITY.md for those)
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes: { label: What happened, description: What did you do, what did you expect, what happened instead }
+    validations: { required: true }
+  - type: input
+    id: versions
+    attributes: { label: Versions, placeholder: "PocketRemote 0.1, macOS 15.x, Android 15, phone model" }
+  - type: textarea
+    id: logs
+    attributes: { label: Logs or screenshots, description: Never paste keys, pairing tokens, QR codes or typed text }
