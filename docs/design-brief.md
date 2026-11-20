@@ -51,7 +51,7 @@ Status-dot glow, idle animation of the lights, amber D-pad glyphs, always-amber 
 Three swipeable pages (dots above the trackpad show which one):
 - **Main:** the media deck and the D-pad, icons only. No words on the main keys (words made it noisy).
 - **Browser:** six equal, big, text-only keys (Back, Forward, Reload, Close tab, Previous tab, Next tab), one text size (18 sp) so none looks smaller. Close tab is outlined in red but is a plain tap like the others (a hold gesture was confusing and read as "not working").
-- **More:** SLIDES (Previous / Next slide = Page Up / Page Down), TRACKS (Previous / Next track), CLICKS (Left / Right click); equal rows, same text size, no gaps.
+- **More:** SLIDES (Previous / Next slide = Page Up / Page Down) and TRACKS (Previous / Next track); equal rows, same text size, no gaps. Left/Right click keys were removed as redundant (tap and two-finger tap already do it).
 - Settings lists the trackpad gestures.
 - Compact layout keeps the trackpad large: 48 dp keys, 52 dp header, page dots sit in the gap above the trackpad and cost no height.
 - Rule from the owner for adding anything: only simple, reliable actions. Deliberately NOT added: three-finger swipe shortcuts (OnePlus system gestures, accidental triggers), Mission Control (needs a new protocol command and depends on a macOS shortcut that may be off; revisit after a 30 s on-device check), a mouse Hold toggle (can desync), slide First/Last (inconsistent across apps), a Stop key (not available in enigo).
