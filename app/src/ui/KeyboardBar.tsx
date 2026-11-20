@@ -87,6 +87,7 @@ export function KeyboardBar({ send, onTyping }: Props) {
         }}
         style={[s.live, live && s.liveOn]}
       >
+        {live ? <View style={s.liveDot} /> : null}
         <Text style={[s.liveText, live && { color: color.amber }]}>Live</Text>
       </Pressable>
       {!live ? (
@@ -107,12 +108,14 @@ export function KeyboardBar({ send, onTyping }: Props) {
 const H = 48; // one height for the field, Live and Send
 const s = StyleSheet.create({
   bar: { flexDirection: 'row', gap: space.s, alignItems: 'center' },
-  field: { flex: 1, height: H, borderRadius: H / 2, backgroundColor: color.surface, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: 'transparent', paddingHorizontal: space.m, ...t.body },
+  field: { flex: 1, height: H, borderRadius: H / 2, backgroundColor: color.surface, borderWidth: 1, borderColor: color.rim, paddingHorizontal: space.m, ...t.body },
   fieldLive: { borderColor: color.amber },
-  live: { minWidth: 60, height: H, borderRadius: H / 2, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth * 2, borderColor: color.outline },
+  // Live and Send are the same kind of control: a 48 dp pill with a soft rim.
+  live: { minWidth: 64, height: H, borderRadius: H / 2, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, backgroundColor: color.surface, borderWidth: 1, borderColor: color.rim, paddingHorizontal: space.m },
   liveOn: { borderColor: color.amber },
-  liveText: { ...t.label, fontSize: 13 },
-  send: { minWidth: 68, height: H, borderRadius: H / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: color.surface, paddingHorizontal: space.m },
-  sendReady: { backgroundColor: color.amber, borderColor: color.amber },
-  sendText: { ...t.body, fontSize: 14, color: color.textMuted },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: color.amber },
+  liveText: { fontSize: 13, fontWeight: '600', letterSpacing: 0.3, color: color.textMuted },
+  send: { minWidth: 68, height: H, borderRadius: H / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: color.surface, borderWidth: 1, borderColor: color.rim, paddingHorizontal: space.m },
+  sendReady: { backgroundColor: color.amber, borderColor: 'rgba(255,255,255,0.18)' },
+  sendText: { fontSize: 13, fontWeight: '600', letterSpacing: 0.3, color: color.rimStrong },
 });

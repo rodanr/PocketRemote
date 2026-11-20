@@ -1,7 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useEffect, useRef } from 'react';
-import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
-import { color, radius, TARGET, type as t } from '../theme';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
+import { color, radius, TARGET } from '../theme';
 import { tick } from './haptics';
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -10,30 +10,34 @@ export interface KeyProps {
   /** Spoken by TalkBack: say the action in words ("Previous tab"). */
   label: string;
   icon?: IconName;
-  /** Put the icon after the text (Forward →, Tab ›). */
-  iconAfter?: boolean;
-  /** Short visible text, used with or instead of an icon. */
+  iconSize?: number;
+  /** Visible text. Keys on the same page use the same text size. */
   text?: string;
-  /** Text size in sp. Every key on a page uses the same size. */
   textSize?: number;
   onPress: () => void;
   /** The one lead action on the screen: amber. */
   lead?: boolean;
   /** Repeat while held (volume). */
   repeat?: boolean;
+  /** Filled but red-tinted, so a key that cannot be undone is easy to tell apart (Close tab). */
+  danger?: boolean;
   flex?: number;
   height?: number;
-  round?: boolean;
-  /** Unfilled, outlined in the danger colour (Close tab), so it stays easy to tell apart. */
-  danger?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
 const REPEAT_DELAY = 350;
 const REPEAT_EVERY = 110;
 
-export function Key({ label, icon, iconAfter, text, textSize = 13, onPress, lead, repeat, flex = 1, height = 48, round, danger, style }: KeyProps) {
+/**
+ * One key style everywhere: a filled 16 dp rounded rectangle with a faint rim, and a soft spring
+ * when pressed. Only the lead key is amber; a danger key gets a red tint.
+ */
+export function Key({ label, icon, iconSize = 24, text, textSize = 15, onPress, lead, repeat, danger, flex = 1, height = 48, style }: KeyProps) {
   const timer = useRef<ReturnType<typeof setTimeout> | ReturnType<typeof setInterval> | null>(null);
+  const [pressed, setPressed] = useState(false);
+  const [scale] = useState(() => new Animated.Value(1));
+
   const stop = () => {
     if (timer.current !== null) {
       clearTimeout(timer.current as ReturnType<typeof setTimeout>);
@@ -47,51 +51,53 @@ export function Key({ label, icon, iconAfter, text, textSize = 13, onPress, lead
     tick();
     onPress();
   };
+  const spring = (to: number, speed: number, bounciness: number) =>
+    Animated.spring(scale, { toValue: to, speed, bounciness, useNativeDriver: true }).start();
 
-  const glyph = icon ? <MaterialCommunityIcons name={icon} size={24} color={lead ? color.onAmber : danger ? color.danger : color.text} /> : null;
+  const face = danger ? (pressed ? s.dangerPressed : s.danger) : lead ? (pressed ? s.leadPressed : s.lead) : pressed ? s.pressed : s.normal;
+  const ink = lead ? color.onAmber : danger ? color.danger : color.text;
 
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={repeat ? undefined : fire}
-      onPressIn={
-        repeat
-          ? () => {
-              fire();
-              timer.current = setTimeout(() => {
-                timer.current = setInterval(fire, REPEAT_EVERY);
-              }, REPEAT_DELAY);
-            }
-          : undefined
-      }
-      onPressOut={repeat ? stop : undefined}
-      style={({ pressed }) => [
-        s.base,
-        { flex, minHeight: Math.max(height, TARGET), borderRadius: round ? 999 : radius.m },
-        danger ? s.danger : lead ? s.lead : s.normal,
-        pressed && (lead ? s.leadPressed : s.pressed),
-        style,
-      ]}
+      onPressIn={() => {
+        setPressed(true);
+        spring(0.96, 50, 0);
+        if (repeat) {
+          fire();
+          timer.current = setTimeout(() => {
+            timer.current = setInterval(fire, REPEAT_EVERY);
+          }, REPEAT_DELAY);
+        }
+      }}
+      onPressOut={() => {
+        setPressed(false);
+        spring(1, 24, 6);
+        if (repeat) stop();
+      }}
+      style={[{ flex, minHeight: Math.max(height, TARGET) }, style]}
     >
-      {icon && !iconAfter ? glyph : null}
-      {text ? (
-        <Text style={[s.text, { fontSize: textSize }, lead && { color: color.onAmber }, danger && { color: color.danger }]} numberOfLines={2}>
-          {text}
-        </Text>
-      ) : null}
-      {icon && iconAfter ? glyph : null}
+      <Animated.View style={[s.face, face, { transform: [{ scale }] }]}>
+        {icon ? <MaterialCommunityIcons name={icon} size={iconSize} color={ink} /> : null}
+        {text ? (
+          <Text style={[s.text, { fontSize: textSize, color: ink }]} numberOfLines={2}>
+            {text}
+          </Text>
+        ) : null}
+      </Animated.View>
     </Pressable>
   );
 }
 
 const s = StyleSheet.create({
-  base: { alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, paddingHorizontal: 6 },
-  // Filled keys carry no outline: fill plus outline says 'shape' twice and looks fussy.
-  normal: { backgroundColor: color.surface },
-  danger: { borderWidth: StyleSheet.hairlineWidth * 2, borderColor: 'rgba(255,107,90,0.6)', backgroundColor: 'transparent' },
-  pressed: { backgroundColor: color.surfacePressed },
-  lead: { backgroundColor: color.amber },
-  leadPressed: { backgroundColor: '#e89f3e' },
-  text: { ...t.body, flexShrink: 1, textAlign: 'center' },
+  face: { flex: 1, borderRadius: radius.m, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, paddingHorizontal: 6 },
+  normal: { backgroundColor: color.surface, borderColor: color.rim },
+  pressed: { backgroundColor: color.surfacePressed, borderColor: color.rim },
+  lead: { backgroundColor: color.amber, borderColor: 'rgba(255,255,255,0.18)' },
+  leadPressed: { backgroundColor: '#e89f3e', borderColor: 'rgba(255,255,255,0.18)' },
+  danger: { backgroundColor: color.surface, borderColor: 'rgba(255,107,90,0.45)' },
+  dangerPressed: { backgroundColor: 'rgba(255,107,90,0.14)', borderColor: 'rgba(255,107,90,0.45)' },
+  text: { fontWeight: '500', letterSpacing: 0.1, flexShrink: 1, textAlign: 'center' },
 });

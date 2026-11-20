@@ -9,10 +9,8 @@ import { clearPairing, loadOrCreatePhoneKeys, loadPairing, loadSettings, saveSet
 import { color, space } from './src/theme';
 import { DEFAULT_POINTER, type PointerSettings } from './src/trackpad/pointer';
 import { useRemote } from './src/useRemote';
-import { BrowserPage } from './src/ui/BrowserPage';
-import { Dpad } from './src/ui/Dpad';
 import { KeyboardBar } from './src/ui/KeyboardBar';
-import { MediaDeck } from './src/ui/MediaDeck';
+import { MainPage } from './src/ui/MainPage';
 import { MorePage } from './src/ui/MorePage';
 import { Pager } from './src/ui/Pager';
 import { PairingScreen } from './src/ui/PairingScreen';
@@ -67,16 +65,8 @@ function Remote({ boot, onForget }: { boot: Boot; onForget: () => void }) {
             {!typing ? (
               <View style={[s.controls, !usable && s.dim]} pointerEvents={usable ? 'auto' : 'none'}>
                 <Pager
-                  pages={[
-                    <View key="main" style={s.page}>
-                      <MediaDeck send={send} active={usable} />
-                      <View style={s.row}>
-                        <Dpad send={send} />
-                      </View>
-                    </View>,
-                    <BrowserPage key="browser" send={send} />,
-                    <MorePage key="more" send={send} />,
-                  ]}
+                  labels={['Main', 'Browser & more']}
+                  pages={[<MainPage key="main" send={send} active={usable} />, <MorePage key="more" send={send} />]}
                 />
               </View>
             ) : null}
@@ -134,7 +124,5 @@ const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.ground },
   body: { flex: 1, paddingHorizontal: space.m, paddingTop: space.s, paddingBottom: space.m, gap: space.s },
   controls: { gap: space.s },
-  page: { gap: space.s },
   dim: { opacity: 0.5 },
-  row: { flexDirection: 'row', justifyContent: 'center' },
 });

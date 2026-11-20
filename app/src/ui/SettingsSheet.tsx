@@ -1,6 +1,6 @@
 import { Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import type { PointerSettings } from '../trackpad/pointer';
-import { color, radius, space, TARGET, type as t } from '../theme';
+import { color, space, TARGET, type as t } from '../theme';
 import { tick } from './haptics';
 
 interface Props {
@@ -71,14 +71,14 @@ export function SettingsSheet({ visible, settings, hostName, onChange, onClose, 
 }
 
 const s = StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' },
-  sheet: { backgroundColor: color.surface, borderTopLeftRadius: radius.pill, borderTopRightRadius: radius.pill, padding: space.l, paddingBottom: space.l + 8, borderTopWidth: StyleSheet.hairlineWidth * 2, borderColor: color.outline },
-  grab: { alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: color.outline, marginBottom: space.m },
+  scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
+  sheet: { backgroundColor: color.groove, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: space.l, paddingBottom: space.l + 8, borderTopWidth: 1, borderColor: color.rim },
+  grab: { alignSelf: 'center', width: 32, height: 4, borderRadius: 2, backgroundColor: color.rimStrong, marginBottom: space.m },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 56 },
   stepper: { flexDirection: 'row', alignItems: 'center' },
-  step: { width: TARGET, height: TARGET, borderRadius: TARGET / 2, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth * 2, borderColor: color.outline },
+  step: { width: TARGET, height: TARGET, borderRadius: TARGET / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: color.surface, borderWidth: 1, borderColor: color.rim },
   stepText: { color: color.text, fontSize: 22 },
-  gesture: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
+  gesture: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#1f1b15' },
   how: { ...t.body, fontSize: 14, color: color.text },
   what: { ...t.body, fontSize: 14, color: color.textMuted },
   forget: { minHeight: TARGET, justifyContent: 'center', marginTop: space.m },

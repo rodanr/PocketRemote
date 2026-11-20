@@ -4,6 +4,9 @@ export const color = {
   ground: '#07070a',
   surface: '#1c1914',
   surfacePressed: '#2a251c',
+  rim: '#262219', // a soft highlight on the edge of a key, not an outline
+  rimStrong: '#3a3226',
+  groove: '#121009', // recessed areas (sheet background, the well around OK)
   trackpad: '#0e0d0b',
   outline: '#6b5a3e', // about 3:1: used only on unfilled controls (Live, Close tab), never on filled keys
   hairline: '#2a251c', // quiet edge for large surfaces such as the trackpad

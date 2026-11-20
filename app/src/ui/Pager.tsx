@@ -1,48 +1,76 @@
-import { useState } from 'react';
-import { type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { color, space } from '../theme';
+import { tick } from './haptics';
+
+const TAB_H = 28;
 
 /**
- * Two (or more) horizontally paged pages with a dot indicator. Every page is as tall as the
- * first one, so switching pages never makes the trackpad below jump.
+ * Swipeable pages with a named tab strip beneath them, so people can see what is on each page
+ * (the strip is the only thing that tells them the Browser keys exist). Every page is as tall as
+ * the first, so switching never makes the trackpad below jump.
  */
-export function Pager({ pages }: { pages: React.ReactNode[] }) {
+export function Pager({ pages, labels }: { pages: React.ReactNode[]; labels: string[] }) {
+  const scroller = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [width, setWidth] = useState(0);
   const [height, setHeight] = useState(0);
+  const [tabsWidth, setTabsWidth] = useState(0);
   const [index, setIndex] = useState(0);
+  const [slide] = useState(() => new Animated.Value(0));
+
+  useEffect(() => {
+    Animated.timing(slide, { toValue: index, duration: 180, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [index, slide]);
 
   const settle = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (width > 0) setIndex(Math.round(e.nativeEvent.contentOffset.x / width));
   };
+  const go = (i: number) => {
+    tick();
+    setIndex(i);
+    scroller.current?.scrollTo({ x: i * width, animated: true });
+  };
 
+  const seg = tabsWidth / labels.length;
   return (
-    <View onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)} accessibilityLabel={`Page ${index + 1} of ${pages.length}`}>
+    <View onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}>
       <ScrollView
+        ref={scroller}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={settle}
         scrollEventThrottle={32}
         nestedScrollEnabled
-        // Do not let a half-swipe leave the pager between pages.
         decelerationRate="fast"
       >
         {pages.map((page, i) => (
           <View key={i} style={{ width, minHeight: height || undefined }}>
-            {/* Measure the content itself (not the box that carries the minimum height), or the
-                height could only ever grow. */}
-            <View
-              style={i > 0 ? s.fill : undefined}
-              onLayout={i === 0 ? (e: LayoutChangeEvent) => setHeight(e.nativeEvent.layout.height) : undefined}
-            >
-              {page}
-            </View>
+            {/* Measure the content itself (not the box that carries the minimum height). */}
+            <View onLayout={i === 0 ? (e: LayoutChangeEvent) => setHeight(e.nativeEvent.layout.height) : undefined}>{page}</View>
           </View>
         ))}
       </ScrollView>
-      <View style={s.dots} accessible={false}>
-        {pages.map((_, i) => (
-          <View key={i} style={[s.dot, i === index && s.dotActive]} />
+      <View style={s.tabs} onLayout={(e: LayoutChangeEvent) => setTabsWidth(e.nativeEvent.layout.width)} accessibilityRole="tablist">
+        {seg > 0 ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[s.pill, { width: seg - 6, transform: [{ translateX: Animated.add(Animated.multiply(slide, seg), 3) }] }]}
+          />
+        ) : null}
+        {labels.map((l, i) => (
+          <Pressable
+            key={l}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: i === index }}
+            onPress={() => go(i)}
+            hitSlop={{ top: 10, bottom: 10 }}
+            style={s.tab}
+          >
+            <Text style={[s.label, i === index && s.labelActive]} maxFontSizeMultiplier={1.4} numberOfLines={1}>
+              {l}
+            </Text>
+          </Pressable>
         ))}
       </View>
     </View>
@@ -50,9 +78,10 @@ export function Pager({ pages }: { pages: React.ReactNode[] }) {
 }
 
 const s = StyleSheet.create({
-  fill: { flex: 1 },
-  // 6 dp dots centred in the 8 dp gap above the trackpad, so they cost no height.
-  dots: { position: 'absolute', left: 0, right: 0, bottom: -7, flexDirection: 'row', justifyContent: 'center', gap: space.s },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: color.hairline },
-  dotActive: { backgroundColor: color.textMuted },
+  tabs: { flexDirection: 'row', height: TAB_H, marginTop: space.s, alignItems: 'center' },
+  // The sliding highlight behind the active tab: a soft raised pill, not amber (amber is for Play).
+  pill: { position: 'absolute', left: 0, top: 0, height: TAB_H, borderRadius: TAB_H / 2, backgroundColor: color.surface, borderWidth: 1, borderColor: color.rim },
+  tab: { flex: 1, height: TAB_H, alignItems: 'center', justifyContent: 'center' },
+  label: { fontSize: 13, fontWeight: '500', letterSpacing: 0.3, color: color.textMuted },
+  labelActive: { color: color.text },
 });
