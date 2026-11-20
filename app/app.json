@@ -3,7 +3,7 @@
     "name": "PocketRemote",
     "slug": "pocketremote",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "ios": {
@@ -25,7 +25,15 @@
     "backgroundColor": "#07070a",
     "plugins": [
       "expo-secure-store",
-      "expo-build-properties"
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ]
   }
 }
