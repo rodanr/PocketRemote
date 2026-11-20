@@ -7,6 +7,8 @@
 
 use block2::RcBlock;
 use objc2::runtime::Bool;
+use objc2_app_kit::NSApplication;
+use objc2_foundation::MainThreadMarker;
 use objc2_foundation::{NSError, NSString};
 use objc2_user_notifications::{
     UNAuthorizationOptions, UNMutableNotificationContent, UNNotificationRequest,
@@ -29,8 +31,14 @@ fn plain(message: &'static str) {
 
 /// Posts the notification. Asks for permission first (macOS shows its prompt once); if it is not
 /// granted, or anything fails, sends the plain fallback instead.
+///
+/// When PocketRemote is the app being used (for example its Control Panel is in front), macOS asks the
+/// app whether to show the banner and, without a delegate that says yes, hides it. So in that case we
+/// use the plain notification, which always shows. Call this from the main thread.
 pub fn send(message: &'static str) {
-    if !in_bundle() {
+    let foreground =
+        MainThreadMarker::new().is_none_or(|mtm| NSApplication::sharedApplication(mtm).isActive());
+    if !in_bundle() || foreground {
         std::thread::spawn(move || plain(message));
         return;
     }
