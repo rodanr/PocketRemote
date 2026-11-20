@@ -1,0 +1,10 @@
+# Security-sensitive files need the owner's review (CLAUDE.md).
+/desktop/src/noise.rs      @rodanr
+/desktop/src/pairing.rs    @rodanr
+/desktop/src/keystore.rs   @rodanr
+/desktop/src/net.rs        @rodanr
+/desktop/src/server.rs     @rodanr
+/app/src/noise/            @rodanr
+/app/src/session.ts        @rodanr
+/protocol/                 @rodanr
+/.github/                  @rodanr
