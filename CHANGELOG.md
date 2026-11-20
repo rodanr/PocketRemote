@@ -1,8 +1,12 @@
 # Changelog
 
-Format: [Keep a Changelog](https://keepachangelog.com/). The project is pre-release (0.x).
+Format: [Keep a Changelog](https://keepachangelog.com/). Releases follow semantic versioning.
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-11-20
+
+First release: Android phone app and macOS host. Ad-hoc signed, not notarized (see docs/INSTALL.md).
 
 ### Added
 - Release workflow (`.github/workflows/release.yml`): a version tag builds the Mac dmg and Android APK and drafts a GitHub release.
@@ -31,5 +35,5 @@ Format: [Keep a Changelog](https://keepachangelog.com/). The project is pre-rele
 - Planned global pause hotkey (owner decision; tray and panel already pause instantly).
 - Redundant Left/Right click keys.
 
-## [0.1.0] - 2026-11
+## [0.1.0] - 2026-11-19
 Phase 0 and 1: secure core (protocol, Noise, pairing, keystore, net, server), input layer, first phone UI, CI on three operating systems.

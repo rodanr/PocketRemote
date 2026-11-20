@@ -33,7 +33,7 @@ Applies to every release; `v1.0.0` is the first. The owner decides when to tag (
    `gh release create vX.Y.Z dist/PocketRemote-*.dmg dist/PocketRemote-*.apk dist/SHA256SUMS --notes-file <notes>`.
 7. Say in the release notes that the Mac app is ad-hoc signed and not notarized (see `INSTALL.md`).
 
-## Draft release notes for 1.0.0
+## Release notes for 1.0.0 (released 2026-11-20 as a draft, then published by the owner)
 
 **PocketRemote 1.0.0** is a free phone remote for your computer over your own Wi-Fi. No account, no cloud.
 
