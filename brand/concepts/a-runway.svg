@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="PocketRemote runway mark">
+  <title>PocketRemote runway mark</title>
+  <!-- Two columns of aisle lights converge on one lit point. Perspective: offset 44 at y=210 down to 0 at y=64. -->
+  <g fill="#000">
+    <circle cx="84" cy="210" r="14"/><circle cx="172" cy="210" r="14"/>
+    <circle cx="96.7" cy="168" r="10"/><circle cx="159.3" cy="168" r="10"/>
+    <circle cx="107" cy="134" r="6.7"/><circle cx="149" cy="134" r="6.7"/>
+    <circle cx="115.4" cy="106" r="4.6"/><circle cx="140.6" cy="106" r="4.6"/>
+    <circle cx="128" cy="62" r="14"/>
+  </g>
+  <circle cx="128" cy="62" r="29" fill="none" stroke="#000" stroke-width="6"/>
+</svg>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="PocketRemote drag trail mark">
+  <title>PocketRemote drag trail mark</title>
+  <!-- A thumb drag: four lights grow along a diagonal and end in a ringed touch point. -->
+  <g fill="#000">
+    <circle cx="62" cy="194" r="7"/><circle cx="90" cy="160" r="10"/><circle cx="121" cy="122" r="13"/>
+    <circle cx="170" cy="82" r="20"/>
+  </g>
+  <circle cx="170" cy="82" r="36" fill="none" stroke="#000" stroke-width="6"/>
+</svg>
