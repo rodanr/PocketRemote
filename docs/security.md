@@ -19,6 +19,10 @@ A session gives full control of the user's desktop session. A stolen session is 
 
 Out of scope: malware already running on the computer or the phone. The owner of the paired phone is fully trusted.
 
+## Notifications
+
+The Mac app shows a fixed-text notification when a phone connects (`Phone connected`), through Apple's UserNotifications framework when running from the installed app, with a plain fallback otherwise. It never includes keys, tokens, typed text or anything from the session. It needs no network access or special entitlements, and the user can revoke it in System Settings, Notifications.
+
 ## Hard rules
 
 - Noise only (`snow` on the host, a tested implementation on the phone). No home-made handshake.

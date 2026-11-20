@@ -4,6 +4,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Releases follow semanti
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-11-21
+
+### Changed
+- Mac: the "Phone connected" notification is now a native macOS notification, so it shows the PocketRemote icon (macOS asks once to allow notifications). Falls back to the old plain notification if permission is denied or anything fails. No `unsafe` code; one new dependency family (`objc2` bindings) already used by the tray.
+
 ## [1.0.2] - 2026-11-21
 
 ### Added
