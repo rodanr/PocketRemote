@@ -4,6 +4,7 @@
 #![forbid(unsafe_code)]
 
 mod engine;
+mod login;
 mod tray;
 
 use engine::Engine;
@@ -28,7 +29,20 @@ const OK: Color = Color::from_rgb(0.373, 0.827, 0.553); // #5fd38d
 const DANGER: Color = Color::from_rgb(1.0, 0.420, 0.353); // #ff6b5a
 const ON_AMBER: Color = Color::from_rgb(0.067, 0.047, 0.020);
 
+/// Only one copy may run: two would fight over the port and the paired phone.
+fn single_instance() -> Option<std::fs::File> {
+    let dir = pocketremote::paths::config_dir()?;
+    std::fs::create_dir_all(&dir).ok()?;
+    let file = std::fs::File::create(dir.join("host.lock")).ok()?;
+    file.try_lock().ok()?;
+    Some(file)
+}
+
 fn main() -> iced::Result {
+    let Some(_lock) = single_instance() else {
+        eprintln!("PocketRemote is already running. Use its menu-bar icon.");
+        return Ok(());
+    };
     iced::daemon(boot, update, view)
         .title(|_: &App, _| "PocketRemote".to_string())
         .theme(|_: &App, _| theme())
@@ -73,6 +87,7 @@ struct App {
     pairing: Option<Pairing>,
     approval: Option<String>,
     confirm_revoke: bool,
+    at_login: bool,
     notice: Option<String>,
 }
 
@@ -92,6 +107,7 @@ enum Msg {
     TogglePause,
     AllowNetwork,
     OpenAccessibility,
+    ToggleLogin,
     Quit,
 }
 
@@ -107,6 +123,7 @@ fn boot() -> (App, Task<Msg>) {
         pairing: None,
         approval: None,
         confirm_revoke: false,
+        at_login: login::enabled(),
         notice: None,
     };
     // The tray must be created on the main thread after the event loop has started.
@@ -227,7 +244,10 @@ fn update(app: &mut App, msg: Msg) -> Task<Msg> {
         Msg::Engine(Engine::NoPermission) => app.phase = Phase::NoPermission,
         Msg::Engine(Engine::Failed(m)) => app.phase = Phase::Failed(m),
         Msg::Engine(Engine::Event(ev)) => match ev {
-            ServerEvent::PhoneConnected => app.connected = true,
+            ServerEvent::PhoneConnected => {
+                app.connected = true;
+                notify("Phone connected");
+            }
             ServerEvent::PhoneDisconnected => app.connected = false,
             ServerEvent::PairingAttempt => {}
             ServerEvent::ApprovalRequested { code } => {
@@ -261,7 +281,22 @@ fn update(app: &mut App, msg: Msg) -> Task<Msg> {
                         }
                         Err(_) => app.notice = Some("Could not draw the pairing code.".into()),
                     },
-                    Err(_) => app.notice = Some("Allow this network first, then pair.".into()),
+                    Err(e) => {
+                        app.notice = Some(
+                            match e {
+                                pocketremote::server::PairError::Paused => {
+                                    "Resume (or allow this network) first, then pair."
+                                }
+                                pocketremote::server::PairError::Keystore => {
+                                    "Could not read the stored keys."
+                                }
+                                pocketremote::server::PairError::Internal => {
+                                    "Pairing could not start. Try again."
+                                }
+                            }
+                            .into(),
+                        );
+                    }
                 }
             }
             return app.open_panel();
@@ -316,10 +351,27 @@ fn update(app: &mut App, msg: Msg) -> Task<Msg> {
                 )
                 .spawn();
         }
+        Msg::ToggleLogin => match login::set(!app.at_login) {
+            Ok(()) => app.at_login = login::enabled(),
+            Err(_) => app.notice = Some("Could not change the launch-at-login setting.".into()),
+        },
         Msg::Quit => return iced::exit(),
     }
     app.refresh();
     Task::none()
+}
+
+/// A plain macOS notification. Fixed text only: nothing from the session is ever shown or logged.
+fn notify(message: &'static str) {
+    #[cfg(target_os = "macos")]
+    let _ = std::process::Command::new("osascript")
+        .args([
+            "-e",
+            &format!("display notification \"{message}\" with title \"PocketRemote\""),
+        ])
+        .spawn();
+    #[cfg(not(target_os = "macos"))]
+    let _ = message;
 }
 
 // ------------------------------------------------------------------ view
@@ -328,7 +380,8 @@ fn update(app: &mut App, msg: Msg) -> Task<Msg> {
 enum Kind {
     Lead,
     Normal,
-    Danger,
+    /// Text-only, red: a rare, destructive action that should not shout.
+    Quiet,
 }
 
 fn btn(label: &str, kind: Kind, msg: Msg) -> Element<'_, Msg> {
@@ -354,14 +407,14 @@ fn btn(label: &str, kind: Kind, msg: Msg) -> Element<'_, Msg> {
                 Color::from_rgba(1.0, 1.0, 1.0, 0.18),
             ),
             Kind::Normal => (if pressed { PRESSED } else { SURFACE }, TEXT, RIM),
-            Kind::Danger => (
+            Kind::Quiet => (
+                Color::TRANSPARENT,
                 if pressed {
-                    Color::from_rgba(1.0, 0.42, 0.353, 0.14)
+                    Color::from_rgb(1.0, 0.55, 0.5)
                 } else {
-                    SURFACE
+                    DANGER
                 },
-                DANGER,
-                Color::from_rgba(1.0, 0.42, 0.353, 0.45),
+                Color::TRANSPARENT,
             ),
         };
         button::Style {
@@ -402,53 +455,144 @@ fn body<'a>(s: impl iced::widget::text::IntoFragment<'a>) -> iced::widget::Text<
     text(s).size(14).color(MUTED)
 }
 
+/// Small muted section label.
+fn label<'a>(s: impl iced::widget::text::IntoFragment<'a>) -> iced::widget::Text<'a> {
+    text(s).size(12).color(MUTED)
+}
+
 fn grouped(code: &str) -> String {
     let (a, b) = code.split_at(code.len().min(3));
     format!("{a} {b}")
 }
 
-fn view(app: &App, _: window::Id) -> Element<'_, Msg> {
-    let dot = match app.look() {
-        Look::Controlled => AMBER,
-        Look::Paused => DANGER,
-        Look::Waiting if matches!(app.phase, Phase::Running(_)) => OK,
-        Look::Waiting => MUTED,
-    };
-    let name = match &app.phase {
-        Phase::Running(s) => s.host_name.clone(),
-        _ => "PocketRemote".to_string(),
-    };
-    let header = row![
-        text("●").size(16).color(dot),
+/// A round status dot (shape plus words: the words are always shown beside it).
+fn dot<'a>(c: Color) -> Element<'a, Msg> {
+    container(text(""))
+        .width(14)
+        .height(14)
+        .style(move |_| container::Style {
+            background: Some(Background::Color(c)),
+            border: Border {
+                radius: 7.0.into(),
+                ..Border::default()
+            },
+            ..container::Style::default()
+        })
+        .into()
+}
+
+/// One settings row: title and a short hint on the left, a switch on the right.
+fn setting<'a>(title: &'a str, hint: &'a str, on: bool, msg: Msg) -> Element<'a, Msg> {
+    row![
         column![
-            text(name).size(22).color(TEXT),
-            text(app.status()).size(14).color(MUTED)
+            text(title).size(15).color(TEXT),
+            text(hint).size(12).color(MUTED)
         ]
         .spacing(2)
+        .width(Length::Fill),
+        iced::widget::toggler(on).on_toggle(move |_| msg.clone()),
     ]
     .spacing(12)
+    .align_y(alignment::Vertical::Center)
+    .into()
+}
+
+fn rule<'a>() -> Element<'a, Msg> {
+    container(text(""))
+        .width(Length::Fill)
+        .height(1)
+        .style(|_| container::Style {
+            background: Some(Background::Color(RIM)),
+            ..container::Style::default()
+        })
+        .into()
+}
+
+/// Title, one calm sentence, and the colour of the dot.
+fn hero(app: &App) -> (String, String, Color) {
+    match &app.phase {
+        Phase::Starting => ("Starting…".into(), "One moment.".into(), MUTED),
+        Phase::NoPermission => (
+            "Needs your permission".into(),
+            "One quick step in System Settings.".into(),
+            AMBER,
+        ),
+        Phase::Failed(_) => (
+            "Can't start".into(),
+            "See the message below.".into(),
+            DANGER,
+        ),
+        Phase::Running(_) if app.untrusted.is_some() => (
+            "Paused: new network".into(),
+            "Phones are blocked until you allow this network.".into(),
+            DANGER,
+        ),
+        Phase::Running(_) if app.paused => (
+            "Paused".into(),
+            "No phone can control this computer until you switch it back on.".into(),
+            DANGER,
+        ),
+        Phase::Running(s) if app.connected => (
+            "Phone connected".into(),
+            format!("Controlling {}.", s.host_name),
+            AMBER,
+        ),
+        Phase::Running(_) if app.paired => (
+            "Ready".into(),
+            "Open PocketRemote on your phone to connect.".into(),
+            OK,
+        ),
+        Phase::Running(_) => (
+            "Not paired yet".into(),
+            "Pair your phone to get started.".into(),
+            MUTED,
+        ),
+    }
+}
+
+fn view(app: &App, _: window::Id) -> Element<'_, Msg> {
+    let (title, sub, tone) = hero(app);
+    let status = row![
+        dot(tone),
+        column![
+            text(title).size(26).color(TEXT),
+            text(sub).size(14).color(MUTED)
+        ]
+        .spacing(3)
+        .width(Length::Fill)
+    ]
+    .spacing(14)
     .align_y(alignment::Vertical::Center);
 
     let main: Element<'_, Msg> = match &app.phase {
-        Phase::Starting => card(body("Starting…")),
+        Phase::Starting => column![].into(),
         Phase::NoPermission => card(
             column![
-                heading("Allow PocketRemote to control this computer"),
-                body("macOS needs your OK before an app can move the pointer or press keys. Open System Settings, turn on PocketRemote under Privacy & Security, then Accessibility. This page notices on its own."),
+                heading("Allow control of this computer"),
+                body("macOS needs your OK before an app can move the pointer or press keys."),
+                column![
+                    body("1.  Open System Settings below."),
+                    body("2.  Privacy & Security, then Accessibility."),
+                    body("3.  Switch on PocketRemote (or the app you started it from)."),
+                ]
+                .spacing(4),
                 btn("Open System Settings", Kind::Lead, Msg::OpenAccessibility),
+                label("This page notices on its own once it is on."),
             ]
             .spacing(14),
         ),
-        Phase::Failed(m) => card(column![heading("PocketRemote can't start"), body(m)].spacing(10)),
+        Phase::Failed(m) => {
+            card(column![heading("Something stopped PocketRemote"), body(m.as_str())].spacing(10))
+        }
         Phase::Running(s) => running(app, s),
     };
 
-    let mut page = column![header, main].spacing(20);
+    let mut page = column![label("POCKETREMOTE"), status, main].spacing(22);
     if let Some(n) = &app.notice {
-        page = page.push(text(n).size(13).color(DANGER));
+        page = page.push(text(n.as_str()).size(13).color(DANGER));
     }
     container(page)
-        .padding(24)
+        .padding([24, 24])
         .width(Length::Fill)
         .height(Length::Fill)
         .style(|_| container::Style {
@@ -463,10 +607,16 @@ fn running<'a>(app: &'a App, s: &'a engine::Started) -> Element<'a, Msg> {
     if let Some(code) = &app.approval {
         return card(
             column![
-                heading("Pair your phone?"),
-                body("A phone is asking to control this computer. Check that this code matches the one on the phone."),
-                text(grouped(code)).size(40).color(AMBER),
-                row![btn("Reject", Kind::Normal, Msg::Reject), btn("Approve", Kind::Lead, Msg::Approve)].spacing(10),
+                heading("Pair this phone?"),
+                body("Does your phone show the same code? Only approve if it does."),
+                container(text(grouped(code)).size(52).color(AMBER))
+                    .center_x(Length::Fill)
+                    .padding([8, 0]),
+                row![
+                    btn("Reject", Kind::Normal, Msg::Reject),
+                    btn("Approve", Kind::Lead, Msg::Approve)
+                ]
+                .spacing(10),
             ]
             .spacing(14),
         );
@@ -475,52 +625,52 @@ fn running<'a>(app: &'a App, s: &'a engine::Started) -> Element<'a, Msg> {
         return card(
             column![
                 heading("Allow phones on this network?"),
-                body(id.as_str()),
-                body("PocketRemote stays paused until you say yes. Only do this on a network you trust, such as your home Wi-Fi."),
-                btn("Allow", Kind::Lead, Msg::AllowNetwork),
+                text(id.as_str()).size(13).color(TEXT),
+                body("Only say yes on a network you trust, such as your home Wi-Fi. PocketRemote stays paused until you do."),
+                btn("Allow this network", Kind::Lead, Msg::AllowNetwork),
             ]
             .spacing(14),
         );
     }
     if let Some(p) = &app.pairing {
-        let left = p.until.saturating_duration_since(Instant::now()).as_secs();
+        let total = 60.0_f32;
+        let left = p
+            .until
+            .saturating_duration_since(Instant::now())
+            .as_secs_f32();
         return card(
             column![
                 heading("Scan with PocketRemote"),
-                body(
-                    "Open the app on your phone and point it at this code. Both on the same Wi-Fi."
-                ),
-                container(qr_code(&p.qr).total_size(260.0))
-                    .padding(14)
+                body("Open the app on your phone, then point it at this code. Both on the same Wi-Fi."),
+                container(qr_code(&p.qr).total_size(250.0))
+                    .padding(16)
                     .center_x(Length::Fill)
                     .style(|_| container::Style {
                         background: Some(Background::Color(Color::from_rgb(0.96, 0.95, 0.92))),
-                        border: Border {
-                            radius: 16.0.into(),
-                            ..Border::default()
-                        },
+                        border: Border { radius: 18.0.into(), ..Border::default() },
                         ..container::Style::default()
                     }),
-                body(format!("Expires in {left} s")),
+                iced::widget::progress_bar(0.0..=total, left.min(total)).girth(4).style(|_| iced::widget::progress_bar::Style {
+                    background: Background::Color(PRESSED),
+                    bar: Background::Color(AMBER),
+                    border: Border { radius: 2.0.into(), ..Border::default() },
+                }),
+                label(format!("Expires in {} s", left.ceil() as u32)),
             ]
             .spacing(14),
         );
     }
 
-    let phone = if app.connected {
-        "A phone is connected."
+    // Overview: your phone, then settings.
+    let phone_line = if app.connected {
+        "Connected right now."
     } else if app.paired {
-        "A phone is paired. It connects when you open the app."
+        "Paired. It connects when you open the app."
     } else {
-        "No phone paired yet."
+        "None yet."
     };
-    let mut col = column![
-        heading("Your phone"),
-        body(phone),
-        body(format!("Listening on {}", s.addr))
-    ]
-    .spacing(10);
-    col = col.push(btn(
+    let mut phone = column![label("YOUR PHONE"), text(phone_line).size(16).color(TEXT)].spacing(8);
+    phone = phone.push(btn(
         if app.paired {
             "Pair a different phone"
         } else {
@@ -530,23 +680,49 @@ fn running<'a>(app: &'a App, s: &'a engine::Started) -> Element<'a, Msg> {
         Msg::Pair,
     ));
     if app.connected {
-        col = col.push(btn("Disconnect", Kind::Normal, Msg::Disconnect));
+        phone = phone.push(btn("Disconnect for now", Kind::Normal, Msg::Disconnect));
     }
     if app.paired {
-        col = col.push(btn(
+        phone = phone.push(btn(
             if app.confirm_revoke {
                 "Tap again to remove this phone"
             } else {
-                "Remove phone"
+                "Remove this phone"
             },
-            Kind::Danger,
+            Kind::Quiet,
             Msg::Revoke,
         ));
     }
-    col = col.push(btn(
-        if app.paused { "Resume" } else { "Pause" },
-        Kind::Normal,
-        Msg::TogglePause,
-    ));
-    card(col.spacing(12))
+
+    let mut settings = column![
+        label("SETTINGS"),
+        setting(
+            "Accept phones",
+            "Switch off to block every phone, right now.",
+            !app.paused,
+            Msg::TogglePause
+        ),
+    ]
+    .spacing(14);
+    if login::supported() {
+        settings = settings.push(rule());
+        settings = settings.push(setting(
+            "Open at login",
+            "Start PocketRemote when you sign in.",
+            app.at_login,
+            Msg::ToggleLogin,
+        ));
+    }
+
+    column![
+        card(phone.spacing(12)),
+        card(settings),
+        container(label(format!(
+            "Listening on {}. Everything stays on your Wi-Fi, encrypted.",
+            s.addr
+        )))
+        .padding([0, 4]),
+    ]
+    .spacing(14)
+    .into()
 }
