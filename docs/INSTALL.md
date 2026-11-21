@@ -15,7 +15,7 @@ PocketRemote is not distributed publicly yet. These steps install a build you ma
 
 **If the app icon looks generic at first** (in Finder, the menu bar or notifications): macOS registers a newly installed app's icon in the background and can take a short while. To refresh it right away, run `/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/PocketRemote.app && killall Dock Finder`.
 
-**Notification icon:** the "Phone connected" notification shows the PocketRemote icon while PocketRemote is in the background. If PocketRemote is the app you are currently using, macOS would hide a native banner, so the app sends a plain one instead (always shown, generic icon).
+**Notification icon:** the "Phone connected" notification always shows the PocketRemote icon, including while PocketRemote is the app you are currently using. (A plain fallback with a generic icon is used only if you deny notification permission.)
 
 Turn on **Open at login** in the Control Panel if you want it to start with your Mac.
 
