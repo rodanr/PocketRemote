@@ -28,7 +28,7 @@ Applies to every release; `v1.0.0` is the first. The owner decides when to tag (
 2. Move the `[Unreleased]` notes in `CHANGELOG.md` under the new version and date.
 3. Build the artifacts: `scripts/build-macos.sh` and `scripts/build-android.sh` (outputs in `dist/`).
 4. Checksums: `cd dist && shasum -a 256 PocketRemote-*.dmg PocketRemote-*.apk > SHA256SUMS`.
-5. Commit ("release vX.Y.Z"), push, wait for CI to be green.
+5. Check `wc -c README.md` is non-zero and `git show --stat HEAD` does not touch files you did not mean to. Commit ("release vX.Y.Z"), push, wait for CI to be green.
 6. Tag and publish: `git tag -a vX.Y.Z -m "PocketRemote X.Y.Z" && git push origin vX.Y.Z`, then
    `gh release create vX.Y.Z dist/PocketRemote-*.dmg dist/PocketRemote-*.apk dist/SHA256SUMS --notes-file <notes>`.
 7. Say in the release notes that the Mac app is ad-hoc signed and not notarized (see `INSTALL.md`).
