@@ -4,6 +4,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Releases follow semanti
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-11-21
+
+### Fixed
+- Mac: the "Phone connected" notification now always shows the PocketRemote icon, including right after launch while PocketRemote is the active app (it used to show a generic icon until you switched to another app). The plain notification is now only a fallback if notification permission is denied or sending fails. No `unsafe` code; one dependency fewer.
+
 ## [1.0.3] - 2026-11-21
 
 ### Changed

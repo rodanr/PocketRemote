@@ -2449,7 +2449,7 @@ dependencies = [
 
 [[package]]
 name = "pocketremote"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "apple-native-keyring-store",
  "base64",
