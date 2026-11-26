@@ -31,7 +31,8 @@ Applies to every release; `v1.0.0` is the first. The owner decides when to tag (
 5. Check `wc -c README.md` is non-zero and `git show --stat HEAD` does not touch files you did not mean to. Commit ("release vX.Y.Z"), push, wait for CI to be green.
 6. Tag and publish: `git tag -a vX.Y.Z -m "PocketRemote X.Y.Z" && git push origin vX.Y.Z`, then
    `gh release create vX.Y.Z dist/PocketRemote-*.dmg dist/PocketRemote-*.apk dist/SHA256SUMS --notes-file <notes>`.
-7. Say in the release notes that the Mac app is ad-hoc signed and not notarized (see `INSTALL.md`).
+7. Publish the draft release. Publishing updates the Homebrew tap (see below).
+8. Say in the release notes that the Mac app is ad-hoc signed and not notarized (see `INSTALL.md`).
 
 ## Release notes for 1.0.0 (released 2026-11-20 as a draft, then published by the owner)
 
@@ -43,3 +44,20 @@ Applies to every release; `v1.0.0` is the first. The owner decides when to tag (
 - Android phone app (sideload the APK) and a macOS app (`.dmg`, ad-hoc signed: approve it once under Privacy & Security, Open Anyway).
 
 Known limits: macOS host only (Windows and Linux planned), Android only, the Mac app is not notarized.
+
+## Homebrew tap
+
+[`rodanr/homebrew-tap`](https://github.com/rodanr/homebrew-tap) holds `Casks/pocketremote.rb`
+(`brew install --cask rodanr/tap/pocketremote`); `packaging/homebrew/pocketremote.rb` is a reference copy.
+
+- **After you publish a stable release,** `.github/workflows/homebrew-tap.yml` rewrites the cask's `version` and
+  `sha256` (from the release's `SHA256SUMS`) and pushes to the tap. Drafts and pre-releases are skipped.
+- **Fallback:** the tap's daily `brew bump` workflow reads the cask's `livecheck` (latest published release) and opens a pull request.
+- **One-time setup for the workflow:** the tap needs a write deploy key and this repo the Actions secret
+  `HOMEBREW_TAP_DEPLOY_KEY` (its private half). Without the secret the workflow does nothing.
+  1. `ssh-keygen -t ed25519 -N "" -C "PocketRemote release" -f tap_key`
+  2. homebrew-tap, Settings, Deploy keys: add `tap_key.pub` with **Allow write access**.
+  3. PocketRemote, Settings, Secrets and variables, Actions: add the contents of `tap_key` as `HOMEBREW_TAP_DEPLOY_KEY`. Delete both local files.
+- **By hand:** edit `version` and `sha256` in the tap, push, then `brew audit --cask --strict --online rodanr/tap/pocketremote`.
+- The cask clears the quarantine flag because the app is not notarized. Remove that block if notarization is ever added.
+- After each release: `brew update && brew upgrade --cask pocketremote` and check the version in the Control Panel.

@@ -41,8 +41,14 @@ No server in the middle: the phone talks straight to your computer. See [docs/AR
 
 ## Install
 
-Download the Mac app and the Android APK from the [Releases page](https://github.com/rodanr/PocketRemote/releases).
-Step by step: [docs/INSTALL.md](docs/INSTALL.md).
+**Mac (Homebrew, Apple silicon, macOS 12+):**
+
+```sh
+brew install --cask rodanr/tap/pocketremote
+```
+
+**Android phone:** download `PocketRemote-X.Y.Z.apk` from the [Releases page](https://github.com/rodanr/PocketRemote/releases/latest) and sideload it.
+Without Homebrew, the Mac `.dmg` is on the same page. Checksums, updating and uninstalling: [docs/INSTALL.md](docs/INSTALL.md).
 
 ## Security in one paragraph
 

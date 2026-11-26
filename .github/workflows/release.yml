@@ -85,4 +85,4 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" dist/PocketRemote-* dist/SHA256SUMS \
             --repo "$GITHUB_REPOSITORY" --draft --title "PocketRemote ${GITHUB_REF_NAME#v}" --generate-notes \
-            --notes "The Mac app is ad-hoc signed and not notarized: approve it once under System Settings, Privacy & Security, Open Anyway. See docs/INSTALL.md."
+            --notes "The Mac app is ad-hoc signed and not notarized: approve it once under System Settings, Privacy & Security, Open Anyway. Homebrew users skip that step: brew install --cask rodanr/tap/pocketremote. See docs/INSTALL.md."

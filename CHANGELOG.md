@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Releases follow semanti
 
 ## [Unreleased]
 
+### Added
+- Mac: install with Homebrew, `brew install --cask rodanr/tap/pocketremote`. Install docs now cover checksums, updating and uninstalling.
+
 ## [1.0.4] - 2026-11-21
 
 ### Fixed

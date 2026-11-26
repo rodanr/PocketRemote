@@ -1,0 +1,52 @@
+name: Update Homebrew tap
+
+# Runs when you PUBLISH a release (the release workflow only creates a draft), so the cask never points at a
+# file that is not downloadable yet. Skipped for pre-releases and when the deploy key is not configured;
+# the tap's daily `brew bump` workflow is the fallback. Setup: docs/RELEASE.md, "Homebrew tap".
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  tap:
+    name: Bump rodanr/homebrew-tap
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name }}
+      HAS_TAP_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY != '' }}
+    steps:
+      - name: Update cask
+        if: env.HAS_TAP_KEY == 'true'
+        env:
+          TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${TAG#v}"
+          echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "::error::Bad version '$VERSION'"; exit 1; }
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern SHA256SUMS --dir "$RUNNER_TEMP"
+          SHA256="$(awk -v f="PocketRemote-$VERSION.dmg" '$2 == f { print $1 }' "$RUNNER_TEMP/SHA256SUMS")"
+          echo "$SHA256" | grep -Eq '^[0-9a-f]{64}$' || { echo "::error::No checksum for the dmg"; exit 1; }
+
+          KEY="$RUNNER_TEMP/tap_key"
+          trap 'rm -f "$KEY"' EXIT
+          (umask 077 && printf '%s\n' "$TAP_DEPLOY_KEY" > "$KEY")
+          export GIT_SSH_COMMAND="ssh -i $KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          git clone --depth 1 git@github.com:rodanr/homebrew-tap.git "$RUNNER_TEMP/tap"
+
+          CASK="$RUNNER_TEMP/tap/Casks/pocketremote.rb"
+          sed -i -E "s/^  version \"[^\"]+\"$/  version \"$VERSION\"/" "$CASK"
+          sed -i -E "s/^  sha256 \"[0-9a-f]{64}\"$/  sha256 \"$SHA256\"/" "$CASK"
+          if ! grep -qx "  version \"$VERSION\"" "$CASK" || ! grep -qx "  sha256 \"$SHA256\"" "$CASK"; then
+            echo "::error::Could not update $CASK"; exit 1
+          fi
+
+          cd "$RUNNER_TEMP/tap"
+          if git diff --quiet; then echo "Tap already at $VERSION"; exit 0; fi
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -qam "pocketremote $VERSION"
+          git push origin HEAD:main
