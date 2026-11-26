@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Releases follow semanti
 
 ## [Unreleased]
 
+### Changed
+- Mac: PocketRemote now keeps its keys in one Keychain item instead of three, so macOS asks for your password once instead of three times. Existing pairings carry over; the first launch after updating may still ask up to three times while the old items are moved.
+
 ### Added
 - Mac: install with Homebrew, `brew install --cask rodanr/tap/pocketremote`. Install docs now cover checksums, updating and uninstalling.
 

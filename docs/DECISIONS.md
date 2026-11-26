@@ -14,7 +14,7 @@ Short records of choices that are not obvious from the code. Newest last. Format
 10. **Settings is a full page**, and the no-connection state is a floating dialog, so nothing is pushed down.
 11. **Stale pairing detection.** Two failed handshakes after reaching the host mean the pairing is stale, so the phone offers Scan again at once. Pressing Reconnect never hides that option.
 12. **Host app is behind a `gui` cargo feature** (`iced` with the software renderer, `tray-icon`, `muda`). The core crate and its CI stay free of GUI and system-library dependencies.
-13. **Secrets cached in memory in the GUI host** (read from the Keychain once), so a phone that retries every few seconds cannot trigger endless Keychain prompts.
+13. **Secrets cached in memory in the GUI host** (read from the Keychain once), so a phone that retries every few seconds cannot trigger endless Keychain prompts. All secrets share one Keychain entry (`state_v1`), so there is one permission prompt, not one per secret.
 14. **Licenses allowed in `deny.toml`:** MIT, Apache-2.0, BSD-2/3, ISC, Unicode-3.0, Zlib, CC0, BSL-1.0, Apache-2.0 WITH LLVM-exception; MPL-2.0 only for `option-ext`. The project's own license is still undecided.
 15. **Manrope** (SIL OFL) on the phone and the Mac panel, bundled, nothing paid.
 16. **Nothing paid.** The Mac app is ad-hoc signed and not notarized; users approve it once. SignPath (free OSS signing for Windows) is an open question for the owner.

@@ -14,7 +14,7 @@ brew install --cask rodanr/tap/pocketremote
 The cask installs `PocketRemote.app` into Applications and removes the download quarantine flag, so macOS opens it
 without the Open Anyway step (the download is pinned by its SHA-256 checksum). Update with `brew upgrade --cask pocketremote`,
 remove with `brew uninstall --cask --zap pocketremote` (`--zap` also deletes its settings; the macOS keychain
-items named `pocketremote` stay until you delete them in Keychain Access).
+item named `pocketremote` stays until you delete them in Keychain Access).
 
 ### Option B: the .dmg
 
@@ -29,7 +29,7 @@ items named `pocketremote` stay until you delete them in Keychain Access).
 
 4. Start it. A menu-bar icon appears and the Control Panel opens.
 5. **Accessibility:** follow the panel's three steps (System Settings, Privacy & Security, Accessibility, switch PocketRemote on). Re-grant it after updating, because unsigned apps can lose the grant.
-6. **Keychain:** macOS asks whether PocketRemote may use its own keychain items (`pocketremote`). Enter your Mac password and choose **Always Allow**. It only ever reads the three items it created.
+6. **Keychain:** macOS asks whether PocketRemote may use its own keychain items (`pocketremote`). Enter your Mac password and choose **Always Allow**. It only ever reads the one item it created (`state_v1`). Because the app is ad-hoc signed, macOS treats every new version as a different app, so expect this one prompt again after each update. Updating from 1.0.4 or older asks up to three times once, while the old items are moved into the new one.
 7. **Network:** on a network it has not seen, PocketRemote stays paused until you press **Allow this network**.
 
 **If the app icon looks generic at first** (in Finder, the menu bar or notifications): macOS registers a newly installed app's icon in the background and can take a short while. To refresh it right away, run `/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/PocketRemote.app && killall Dock Finder`.

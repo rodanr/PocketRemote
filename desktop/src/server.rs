@@ -1402,7 +1402,7 @@ mod tests {
 
     #[tokio::test]
     async fn revoke_closes_the_session_even_if_the_key_store_fails() {
-        /// A key store whose deletes fail once switched on (setup itself needs deletes to work).
+        /// A key store whose writes and deletes fail once switched on (setup itself needs them to work).
         struct FailingDelete(MemoryStore, Arc<AtomicBool>);
         impl SecretStore for FailingDelete {
             fn get(
@@ -1413,7 +1413,11 @@ mod tests {
                 self.0.get(n)
             }
             fn set(&self, n: &str, v: &[u8]) -> Result<(), crate::keystore::KeystoreError> {
-                self.0.set(n, v)
+                if self.1.load(Ordering::SeqCst) {
+                    Err(crate::keystore::KeystoreError::Failed)
+                } else {
+                    self.0.set(n, v)
+                }
             }
             fn delete(&self, n: &str) -> Result<(), crate::keystore::KeystoreError> {
                 if self.1.load(Ordering::SeqCst) {
