@@ -10,9 +10,6 @@ use std::path::PathBuf;
 use zeroize::Zeroizing;
 
 const STATE: &str = "state_v1";
-const LEGACY_HOST_PRIVATE: &str = "host_private";
-const LEGACY_HOST_PUBLIC: &str = "host_public";
-const LEGACY_PHONE_PUBLIC: &str = "phone_public";
 const SERVICE: &str = "pocketremote";
 
 /// Opaque failure; carries no key material.
@@ -200,8 +197,8 @@ pub fn open_default_store() -> Result<Box<dyn SecretStore>> {
 /// Host keypair and the single paired phone.
 ///
 /// Everything lives in ONE store entry (`STATE`): `private(32) || public(32) [|| phone_public(32)]`.
-/// One entry means one macOS Keychain permission prompt instead of one per secret. Older versions kept
-/// three separate entries (`LEGACY_*`); they are migrated on first use and then deleted.
+/// One entry means one macOS Keychain permission prompt instead of one per secret, and the keypair and
+/// the phone key are always written together.
 pub struct Keystore {
     store: Box<dyn SecretStore>,
 }
@@ -248,49 +245,13 @@ impl Keystore {
         Self { store }
     }
 
-    /// The stored state, migrating the three legacy entries the first time. A damaged state reads as
-    /// `None`, like a missing one.
+    /// The stored state. A damaged state reads as `None`, like a missing one.
     fn load(&self) -> Result<Option<State>> {
-        if let Some(bytes) = self.store.get(STATE)? {
-            return Ok(State::parse(&bytes));
-        }
-        self.migrate_legacy()
+        Ok(self.store.get(STATE)?.and_then(|b| State::parse(&b)))
     }
 
     fn save(&self, state: &State) -> Result<()> {
         self.store.set(STATE, &state.encode())
-    }
-
-    /// Moves a valid legacy host keypair (and phone) into `STATE`, then deletes the legacy entries.
-    /// A damaged legacy pair is not migrated; the caller then generates a fresh one.
-    fn migrate_legacy(&self) -> Result<Option<State>> {
-        let (Some(private), Some(public)) = (
-            self.store.get(LEGACY_HOST_PRIVATE)?,
-            self.store.get(LEGACY_HOST_PUBLIC)?,
-        ) else {
-            return Ok(None);
-        };
-        let phone = self.store.get(LEGACY_PHONE_PUBLIC)?;
-        let (Ok(private), Ok(public)) = (
-            <[u8; 32]>::try_from(private.as_slice()),
-            <[u8; 32]>::try_from(public.as_slice()),
-        ) else {
-            return Ok(None);
-        };
-        let state = State {
-            private: Zeroizing::new(private),
-            public,
-            phone: phone.and_then(|p| <[u8; 32]>::try_from(p.as_slice()).ok()),
-        };
-        self.save(&state)?;
-        self.delete_legacy()?;
-        Ok(Some(state))
-    }
-
-    fn delete_legacy(&self) -> Result<()> {
-        self.store.delete(LEGACY_PHONE_PUBLIC)?;
-        self.store.delete(LEGACY_HOST_PRIVATE)?;
-        self.store.delete(LEGACY_HOST_PUBLIC)
     }
 
     /// Load the host keypair, generating one on first use. If the stored state is damaged,
@@ -337,8 +298,7 @@ impl Keystore {
 
     /// "Reset pairing": deletes the host key and the paired phone.
     pub fn reset_pairing(&self) -> Result<()> {
-        self.store.delete(STATE)?;
-        self.delete_legacy()
+        self.store.delete(STATE)
     }
 }
 
@@ -394,45 +354,32 @@ mod tests {
 
     #[test]
     fn everything_is_stored_in_one_entry() {
-        let store = MemoryStore::default();
-        let ks = Keystore::new(Box::new(store));
+        let ks = mem();
         ks.set_paired_phone(&[7; 32]).unwrap();
-        // Only the single state entry exists: legacy names are not written.
-        for legacy in [LEGACY_HOST_PRIVATE, LEGACY_HOST_PUBLIC, LEGACY_PHONE_PUBLIC] {
-            assert!(ks.store.get(legacy).unwrap().is_none());
-        }
         assert_eq!(ks.store.get(STATE).unwrap().unwrap().len(), 96);
     }
 
+    #[cfg(unix)]
     #[test]
-    fn legacy_entries_are_migrated_once_and_deleted() {
-        let kp = generate_static_keypair().unwrap();
-        let store = MemoryStore::default();
-        store
-            .set(LEGACY_HOST_PRIVATE, kp.private.as_slice())
-            .unwrap();
-        store.set(LEGACY_HOST_PUBLIC, &kp.public).unwrap();
-        store.set(LEGACY_PHONE_PUBLIC, &[5; 32]).unwrap();
-        let ks = Keystore::new(Box::new(store));
-        let loaded = ks.host_keypair().unwrap();
-        assert_eq!(loaded.public, kp.public);
-        assert_eq!(*loaded.private, *kp.private);
-        assert_eq!(ks.paired_phone().unwrap(), Some([5; 32]));
-        for legacy in [LEGACY_HOST_PRIVATE, LEGACY_HOST_PUBLIC, LEGACY_PHONE_PUBLIC] {
-            assert!(ks.store.get(legacy).unwrap().is_none());
-        }
-    }
-
-    #[test]
-    fn damaged_legacy_pair_is_not_migrated() {
-        let store = MemoryStore::default();
-        store.set(LEGACY_HOST_PRIVATE, &[1, 2, 3]).unwrap();
-        store.set(LEGACY_HOST_PUBLIC, &[4; 32]).unwrap();
-        store.set(LEGACY_PHONE_PUBLIC, &[5; 32]).unwrap();
-        let ks = Keystore::new(Box::new(store));
+    fn keystore_works_on_the_file_store_fallback() {
+        let dir = std::env::temp_dir().join(format!(
+            "pocketremote-ks-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let ks = Keystore::new(Box::new(FileStore::new(dir.clone()).unwrap()));
         let kp = ks.host_keypair().unwrap();
-        assert_ne!(kp.public, [4; 32]);
-        assert_eq!(ks.paired_phone().unwrap(), None);
+        ks.set_paired_phone(&[3; 32]).unwrap();
+        // A second Keystore on the same directory sees the same keys and phone.
+        let again = Keystore::new(Box::new(FileStore::new(dir.clone()).unwrap()));
+        assert_eq!(again.host_keypair().unwrap().public, kp.public);
+        assert_eq!(again.paired_phone().unwrap(), Some([3; 32]));
+        again.reset_pairing().unwrap();
+        assert_eq!(again.paired_phone().unwrap(), None);
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[cfg(unix)]
