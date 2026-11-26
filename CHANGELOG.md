@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Releases follow semanti
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-11-26
+
 ### Changed
 - Mac: PocketRemote now keeps its keys in one Keychain item instead of three, so macOS asks for your password once instead of three times. Existing pairings carry over; the first launch after updating may still ask up to three times while the old items are moved.
 
