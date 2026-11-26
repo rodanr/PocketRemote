@@ -53,8 +53,12 @@ Known limits: macOS host only (Windows and Linux planned), Android only, the Mac
 - **After you publish a stable release,** `.github/workflows/homebrew-tap.yml` rewrites the cask's `version` and
   `sha256` (from the release's `SHA256SUMS`) and pushes to the tap. Drafts and pre-releases are skipped.
 - **Fallback:** the tap's daily `brew bump` workflow reads the cask's `livecheck` (latest published release) and opens a pull request.
-- **One-time setup for the workflow:** the tap needs a write deploy key and this repo the Actions secret
-  `HOMEBREW_TAP_DEPLOY_KEY` (its private half). Without the secret the workflow does nothing.
+- **Deploy key (configured 2026-11-26):** PocketRemote has its own write deploy key on the tap (titled
+  "PocketRemote release"), separate from the other apps' keys, with the private half stored only as the Actions
+  secret `HOMEBREW_TAP_DEPLOY_KEY`. One key per app repo means a leak or rotation affects one app, and the
+  tap's key list shows which app can push. GitHub can't limit a deploy key to one file, so it can write to the
+  whole tap; review tap commits. Without the secret the workflow does nothing. To rotate, delete the old key
+  in the tap and repeat:
   1. `ssh-keygen -t ed25519 -N "" -C "PocketRemote release" -f tap_key`
   2. homebrew-tap, Settings, Deploy keys: add `tap_key.pub` with **Allow write access**.
   3. PocketRemote, Settings, Secrets and variables, Actions: add the contents of `tap_key` as `HOMEBREW_TAP_DEPLOY_KEY`. Delete both local files.
